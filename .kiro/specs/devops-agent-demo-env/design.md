@@ -755,19 +755,67 @@ const resetResponse = await fetch('https://demo-alb.us-east-1.elb.amazonaws.com/
 
 ## Correctness Properties
 
-The following properties must hold for the system to be considered correct:
+*A property is a characteristic or behavior that should hold true across all valid executions of a system — essentially, a formal statement about what the system should do. Properties serve as the bridge between human-readable specifications and machine-verifiable correctness guarantees.*
 
-1. **Fault Isolation**: For all requests `r` where `r.path` starts with `/api/catalog/`, the response status code is `200` regardless of whether a fault is active on the Orders EBS volume.
+### Property 1: Catalog retrieval returns all stored products
 
-2. **Trigger Determinism**: For all checkout requests `r` where `r.body.itemId === 'TRIGGER_ITEM'`, the fault injection process is started exactly once (idempotent). Subsequent trigger purchases do not stack fault processes.
+*For any* set of products stored in the database, requesting the product catalog SHALL return every product in the set with HTTP 200, and requesting any individual product by its ID SHALL return that exact product.
 
-3. **Fault Observability**: When a fault is active, within 2 evaluation periods (2 minutes), all three CloudWatch alarms transition to `ALARM` state.
+**Validates: Requirements 1.1, 1.2**
 
-4. **Reset Completeness**: After `resetFault()` completes successfully, `getFaultStatus().active === false` AND no `fio` or `dd` processes are running AND disk usage is below 50%.
+### Property 2: Valid checkout creates a confirmed order
 
-5. **Data Integrity**: For all orders created before fault injection, the order records in RDS remain intact and queryable. The fault only affects EBS-dependent operations, not database operations.
+*For any* valid checkout request (non-empty item ID referencing an existing non-trigger product, positive quantity), the Orders Service SHALL create an order record in the database with status "confirmed" and return HTTP 200 with the order ID.
 
-6. **Health Check Accuracy**: `checkOrdersHealth()` returns `status: 'degraded'` when EBS I/O latency exceeds 5 seconds, and `status: 'healthy'` when both database and EBS are responsive.
+**Validates: Requirements 2.1, 2.5**
+
+### Property 3: Invalid checkout requests are rejected
+
+*For any* checkout request where the item ID is empty or composed entirely of whitespace, or the quantity is zero or negative, the Orders Service SHALL reject the request with HTTP 400 without creating any order record.
+
+**Validates: Requirement 2.2**
+
+### Property 4: Fault injection is idempotent
+
+*For any* number of consecutive calls to `executeFaultInjection` while a fault is already active, the system SHALL have exactly one set of fio/dd processes running — calling inject N times produces the same state as calling it once.
+
+**Validates: Requirement 3.3**
+
+### Property 5: Fault isolation — Catalog Service unaffected by EBS fault
+
+*For any* catalog API request (list products or get product by ID) made while a fault is active on the Orders Service EBS volume, the Catalog Service SHALL return HTTP 200 with correct data.
+
+**Validates: Requirements 4.3, 11.1**
+
+### Property 6: Fault impact — Orders Service fails during active fault
+
+*For any* valid checkout request submitted while a fault is active on the EBS volume, the Orders Service SHALL return HTTP 500 for operations that require EBS writes.
+
+**Validates: Requirement 4.1**
+
+### Property 7: Health check accuracy reflects system state
+
+*For any* combination of database connectivity (reachable/unreachable) and EBS I/O latency, the Orders Service health check SHALL return "healthy" when both are responsive (EBS latency < 5s), "degraded" when the database is responsive but EBS latency exceeds 5 seconds, and "unhealthy" when the database is unreachable.
+
+**Validates: Requirements 6.1, 6.2**
+
+### Property 8: Health check leaves no residual files
+
+*For any* invocation of the Orders Service health check, after the check completes, no test files SHALL remain on the EBS volume from that health check execution.
+
+**Validates: Requirement 6.5**
+
+### Property 9: Data integrity — pre-fault orders survive fault lifecycle
+
+*For any* set of orders created before fault injection, all order records SHALL remain intact and queryable in the RDS database throughout the fault injection and reset lifecycle.
+
+**Validates: Requirement 11.2**
+
+### Property 10: Database constraints enforce positive values
+
+*For any* product with a non-positive price, or any order with a non-positive quantity, the RDS database SHALL reject the insert operation via CHECK constraints.
+
+**Validates: Requirements 12.3, 12.4**
 
 ## Error Handling
 
