@@ -1,0 +1,13 @@
+{
+  "enabled": true,
+  "name": "Push & Notify PR After Stop",
+  "description": "When the agent stops working, reminds it to push any uncommitted work to the feature branch and post a status comment on the GitHub PR.",
+  "version": "1",
+  "when": {
+    "type": "agentStop"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Before finishing, check if there is any uncommitted or unpushed work:\\n\\n1. Run `git status` — if there are staged or unstaged changes, commit them with a conventional commit message and push to the current branch\\n2. Run `git log origin/HEAD..HEAD` — if there are unpushed commits, push them\\n3. If you were working on a feature branch with a GitHub PR, post a status update comment on the PR using the GitHub API. Use the agent persona format:\\n\\n```\\n**[emoji] [Agent Name]** — Status Update\\n\\n[What was accomplished in this session]\\n[What remains to be done, if anything]\\n[Current quality signal]\\n```\\n\\nDo NOT push to main directly. Only push to feature branches."
+  }
+}

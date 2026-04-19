@@ -1,0 +1,16 @@
+{
+  "enabled": true,
+  "name": "Enforce Standards on Write",
+  "description": "Reviews write operations for file ownership boundaries, naming conventions, code smells, and security. Ensures agents stay in their lane.",
+  "version": "1.0.0",
+  "when": {
+    "type": "postToolUse",
+    "toolTypes": [
+      "write"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Review this write operation for compliance:\n\n1. File ownership — is this agent writing within its domain? (system-architect: src/shared/, src/config/, docs/adr/ | frontend-dev: src/components/, src/hooks/, src/pages/, src/App.tsx | backend-dev: src/api/, src/services/, src/models/, src/middleware/ | ui-designer: src/styles/, src/design-system/, docs/design/ | qa-agent: e2e/, playwright.config.ts)\n2. Naming — kebab-case for .ts files, PascalCase for .tsx components\n3. Code smells — functions >20 lines, parameter lists >3, duplicated code\n4. Security — no hardcoded secrets, PII, or magic values\n5. Imports — flow inward toward shared/, no circular deps\n\nIf violations found, describe them. If clean, confirm it passes."
+  }
+}

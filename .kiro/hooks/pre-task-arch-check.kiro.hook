@@ -1,0 +1,13 @@
+{
+  "enabled": true,
+  "name": "PR & Branch Check Before Task",
+  "description": "Before any spec task begins, verifies the Issue-first workflow: planning Issue exists with approved spec, Draft PR is linked, correct branch is checked out.",
+  "version": "1.0.0",
+  "when": {
+    "type": "preTaskExecution"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Before starting this task, verify the Issue-first workflow:\n\n1. Has a planning Issue been created on GitHub for this feature?\n2. Has the system-architect posted a technical spec in the Issue thread?\n3. Has the spec been approved by master-agent in the Issue?\n4. Has a Draft PR been created AFTER spec approval, linked with 'Resolves #N'?\n5. Is the correct feature branch checked out? (not main)\n6. Are the architecture contracts and shared types available?\n7. Are the test requirements defined in the PR description?\n8. Does this agent have clear file ownership for the files it will modify?\n\nIf any of these are missing, create them before proceeding. NEVER work directly on main."
+  }
+}

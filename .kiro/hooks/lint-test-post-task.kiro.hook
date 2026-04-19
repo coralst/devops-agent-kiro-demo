@@ -1,0 +1,13 @@
+{
+  "enabled": true,
+  "name": "CI Pipeline After Task",
+  "description": "Runs the full CI pipeline (lint, test, build) after each spec task completes. Posts results summary.",
+  "version": "1.0.0",
+  "when": {
+    "type": "postTaskExecution"
+  },
+  "then": {
+    "type": "runCommand",
+    "command": "echo '--- CI Pipeline ---' && echo '1. Lint (tsc --noEmit)' && npm run lint 2>&1 && echo '✅ Lint passed' || echo '❌ Lint failed' && echo '2. Tests' && npm test -- --run 2>&1 && echo '✅ Tests passed' || echo '❌ Tests failed' && echo '3. Build' && npm run build 2>&1 && echo '✅ Build passed' || echo '❌ Build failed'"
+  }
+}
