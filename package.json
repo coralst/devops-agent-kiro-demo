@@ -1,0 +1,13 @@
+{
+  "name": "devops-agent-demo-env",
+  "version": "1.0.0",
+  "private": true,
+  "description": "DevOps Agent Demo Environment — AWS-based e-commerce platform for fault injection demos",
+  "scripts": {
+    "lint": "npm run typecheck --prefix app/catalog-service && npm run typecheck --prefix app/orders-service",
+    "test": "npm run test:catalog && npm run test:orders",
+    "test:catalog": "npm test --prefix app/catalog-service -- --run",
+    "test:orders": "npm test --prefix app/orders-service -- --run",
+    "build": "npm run build --prefix app/catalog-service && npm run build --prefix app/orders-service && npm run build --prefix app/frontend"
+  }
+}

@@ -1,0 +1,154 @@
+#!/bin/bash
+set -euo pipefail
+
+# -----------------------------------------------------------------------------
+# Orders Service — EC2 User Data Script
+# Installs Node.js 20, fio, formats and mounts the dedicated EBS volume,
+# retrieves DB credentials from Secrets Manager, deploys the orders service,
+# and starts it via systemd.
+# -----------------------------------------------------------------------------
+
+exec > /var/log/orders-setup.log 2>&1
+echo "=== Orders Service setup started at $(date) ==="
+
+# Install Node.js 20 via NodeSource
+dnf install -y gcc-c++ make
+curl -fsSL https://rpm.nodesource.com/setup_20.x | bash -
+dnf install -y nodejs
+
+echo "Node.js version: $(node --version)"
+echo "npm version: $(npm --version)"
+
+# Install fio for fault injection (EBS stress testing)
+dnf install -y fio
+echo "fio version: $(fio --version)"
+
+# -----------------------------------------------------------------------------
+# Wait for EBS volume to attach, then format and mount
+# -----------------------------------------------------------------------------
+
+EBS_DEVICE="${ebs_device}"
+EBS_MOUNT_PATH="${ebs_mount_path}"
+
+echo "Waiting for EBS volume at $EBS_DEVICE to attach..."
+while [ ! -e "$EBS_DEVICE" ]; do
+  echo "  Device $EBS_DEVICE not found yet, sleeping 5s..."
+  sleep 5
+done
+echo "EBS volume detected at $EBS_DEVICE"
+
+# Format the volume with XFS (only if not already formatted)
+if ! blkid "$EBS_DEVICE" | grep -q xfs; then
+  echo "Formatting $EBS_DEVICE with XFS..."
+  mkfs.xfs "$EBS_DEVICE"
+else
+  echo "$EBS_DEVICE already formatted with XFS, skipping format."
+fi
+
+# Create mount point and mount the volume
+mkdir -p "$EBS_MOUNT_PATH"
+mount "$EBS_DEVICE" "$EBS_MOUNT_PATH"
+echo "Mounted $EBS_DEVICE at $EBS_MOUNT_PATH"
+
+# Add fstab entry for persistence across reboots
+if ! grep -q "$EBS_MOUNT_PATH" /etc/fstab; then
+  echo "$EBS_DEVICE  $EBS_MOUNT_PATH  xfs  defaults,nofail  0  2" >> /etc/fstab
+  echo "Added fstab entry for $EBS_MOUNT_PATH"
+fi
+
+# Verify mount
+df -h "$EBS_MOUNT_PATH"
+
+# -----------------------------------------------------------------------------
+# Create application directory
+# -----------------------------------------------------------------------------
+
+mkdir -p /opt/orders-service
+cd /opt/orders-service
+
+# Create data directory on the EBS volume for order logs
+mkdir -p "$EBS_MOUNT_PATH/logs"
+
+# -----------------------------------------------------------------------------
+# Retrieve database credentials from Secrets Manager
+# -----------------------------------------------------------------------------
+
+DB_CREDS=$(aws secretsmanager get-secret-value \
+  --secret-id "${secret_arn}" \
+  --region "${aws_region}" \
+  --query 'SecretString' \
+  --output text)
+
+DB_USER=$(echo "$DB_CREDS" | python3 -c "import sys,json; print(json.loads(sys.stdin.read())['username'])")
+DB_PASSWORD=$(echo "$DB_CREDS" | python3 -c "import sys,json; print(json.loads(sys.stdin.read())['password'])")
+
+# -----------------------------------------------------------------------------
+# Set environment variables for the orders service
+# -----------------------------------------------------------------------------
+
+cat > /opt/orders-service/.env <<ENVFILE
+DB_HOST=${db_host}
+DB_PORT=${db_port}
+DB_NAME=${db_name}
+DB_USER=$DB_USER
+DB_PASSWORD=$DB_PASSWORD
+EBS_MOUNT_PATH=$EBS_MOUNT_PATH
+NODE_ENV=production
+PORT=3000
+PROJECT_NAME=${project_name}
+ENVIRONMENT=${environment}
+ENVFILE
+
+chmod 600 /opt/orders-service/.env
+
+# -----------------------------------------------------------------------------
+# Deploy orders service application code
+# In production this would use S3, CodeDeploy, or a CI/CD pipeline.
+# For the demo, the code is placed here by the deployment process.
+# -----------------------------------------------------------------------------
+
+echo "Installing npm dependencies..."
+cd /opt/orders-service
+npm ci --production 2>/dev/null || npm install --production
+
+echo "Building TypeScript..."
+npx tsc || echo "Build step completed (may use pre-built dist)."
+
+# Make fault injection scripts executable
+chmod +x /opt/orders-service/scripts/fault-inject.sh 2>/dev/null || true
+chmod +x /opt/orders-service/scripts/fault-reset.sh 2>/dev/null || true
+
+# -----------------------------------------------------------------------------
+# Create systemd service unit for the orders service
+# -----------------------------------------------------------------------------
+
+cat > /etc/systemd/system/orders-service.service <<'UNIT'
+[Unit]
+Description=Orders Service (DevOps Agent Demo)
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/orders-service
+EnvironmentFile=/opt/orders-service/.env
+ExecStart=/usr/bin/node dist/src/index.js
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=orders-service
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+
+# Enable and start the service
+systemctl daemon-reload
+systemctl enable orders-service
+systemctl start orders-service
+
+echo "Orders service started. Checking status..."
+systemctl status orders-service --no-pager || true
+
+echo "=== Orders Service setup completed at $(date) ==="

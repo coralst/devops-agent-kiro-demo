@@ -1,0 +1,123 @@
+#!/bin/bash
+set -euo pipefail
+
+# -----------------------------------------------------------------------------
+# Catalog Service — EC2 User Data Script
+# Installs Node.js 20, retrieves DB credentials from Secrets Manager,
+# initializes the database schema and seed data, deploys the catalog service,
+# and starts it via systemd.
+# -----------------------------------------------------------------------------
+
+exec > /var/log/catalog-setup.log 2>&1
+echo "=== Catalog Service setup started at $(date) ==="
+
+# Install Node.js 20 via NodeSource
+dnf install -y gcc-c++ make
+curl -fsSL https://rpm.nodesource.com/setup_20.x | bash -
+dnf install -y nodejs
+
+echo "Node.js version: $(node --version)"
+echo "npm version: $(npm --version)"
+
+# Install PostgreSQL client for running init/seed SQL
+dnf install -y postgresql15
+
+# Create application directory
+mkdir -p /opt/catalog-service
+cd /opt/catalog-service
+
+# -----------------------------------------------------------------------------
+# Retrieve database credentials from Secrets Manager
+# -----------------------------------------------------------------------------
+
+DB_CREDS=$(aws secretsmanager get-secret-value \
+  --secret-id "${secret_arn}" \
+  --region "${aws_region}" \
+  --query 'SecretString' \
+  --output text)
+
+DB_USER=$(echo "$DB_CREDS" | python3 -c "import sys,json; print(json.loads(sys.stdin.read())['username'])")
+DB_PASSWORD=$(echo "$DB_CREDS" | python3 -c "import sys,json; print(json.loads(sys.stdin.read())['password'])")
+
+# -----------------------------------------------------------------------------
+# Set environment variables for the catalog service
+# -----------------------------------------------------------------------------
+
+cat > /opt/catalog-service/.env <<ENVFILE
+DB_HOST=${db_host}
+DB_PORT=${db_port}
+DB_NAME=${db_name}
+DB_USER=$DB_USER
+DB_PASSWORD=$DB_PASSWORD
+NODE_ENV=production
+PORT=3000
+PROJECT_NAME=${project_name}
+ENVIRONMENT=${environment}
+ENVFILE
+
+chmod 600 /opt/catalog-service/.env
+
+# -----------------------------------------------------------------------------
+# Initialize database schema and seed data
+# The catalog service runs init first since it starts before orders.
+# -----------------------------------------------------------------------------
+
+export PGPASSWORD="$DB_PASSWORD"
+
+echo "Running database init SQL..."
+psql -h "${db_host}" -p "${db_port}" -U "$DB_USER" -d "${db_name}" \
+  -f /opt/catalog-service/db/init.sql || echo "Init SQL may have already been applied."
+
+echo "Running database seed SQL..."
+psql -h "${db_host}" -p "${db_port}" -U "$DB_USER" -d "${db_name}" \
+  -f /opt/catalog-service/db/seed.sql || echo "Seed SQL may have already been applied."
+
+unset PGPASSWORD
+
+# -----------------------------------------------------------------------------
+# Deploy catalog service application code
+# In production this would use S3, CodeDeploy, or a CI/CD pipeline.
+# For the demo, the code is placed here by the deployment process.
+# -----------------------------------------------------------------------------
+
+echo "Installing npm dependencies..."
+cd /opt/catalog-service
+npm ci --production 2>/dev/null || npm install --production
+
+echo "Building TypeScript..."
+npx tsc || echo "Build step completed (may use pre-built dist)."
+
+# -----------------------------------------------------------------------------
+# Create systemd service unit for the catalog service
+# -----------------------------------------------------------------------------
+
+cat > /etc/systemd/system/catalog-service.service <<'UNIT'
+[Unit]
+Description=Catalog Service (DevOps Agent Demo)
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/catalog-service
+EnvironmentFile=/opt/catalog-service/.env
+ExecStart=/usr/bin/node dist/src/index.js
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=catalog-service
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+
+# Enable and start the service
+systemctl daemon-reload
+systemctl enable catalog-service
+systemctl start catalog-service
+
+echo "Catalog service started. Checking status..."
+systemctl status catalog-service --no-pager || true
+
+echo "=== Catalog Service setup completed at $(date) ==="
