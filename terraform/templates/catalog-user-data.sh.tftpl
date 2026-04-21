@@ -22,9 +22,15 @@ echo "npm version: $(npm --version)"
 # Install PostgreSQL client for running init/seed SQL
 dnf install -y postgresql15
 
-# Create application directory
+# Create application directory and download code from S3
 mkdir -p /opt/catalog-service
 cd /opt/catalog-service
+
+echo "Downloading catalog-service artifact from S3..."
+aws s3 cp "s3://${s3_bucket}/deploy/catalog-service.tar.gz" /tmp/catalog-service.tar.gz --region "${aws_region}"
+tar -xzf /tmp/catalog-service.tar.gz -C /opt/catalog-service
+rm -f /tmp/catalog-service.tar.gz
+echo "Artifact extracted."
 
 # -----------------------------------------------------------------------------
 # Retrieve database credentials from Secrets Manager

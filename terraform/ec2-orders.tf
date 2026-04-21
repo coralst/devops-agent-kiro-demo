@@ -29,6 +29,7 @@ resource "aws_instance" "orders" {
     db_name        = aws_db_instance.main.db_name
     secret_arn     = aws_secretsmanager_secret.db_credentials.arn
     aws_region     = var.aws_region
+    s3_bucket      = aws_s3_bucket.frontend.id
     project_name   = var.project_name
     environment    = var.environment
     ebs_device     = "/dev/xvdf"

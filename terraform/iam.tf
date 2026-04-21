@@ -84,3 +84,26 @@ resource "aws_iam_role_policy" "secrets_manager_read" {
     ]
   })
 }
+
+# -----------------------------------------------------------------------------
+# S3 Read Access — for downloading deployment artifacts
+# -----------------------------------------------------------------------------
+
+resource "aws_iam_role_policy" "s3_read" {
+  name = "${var.project_name}-${var.environment}-s3-read"
+  role = aws_iam_role.ec2.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = ["s3:GetObject", "s3:ListBucket"]
+        Resource = [
+          aws_s3_bucket.frontend.arn,
+          "${aws_s3_bucket.frontend.arn}/*"
+        ]
+      }
+    ]
+  })
+}

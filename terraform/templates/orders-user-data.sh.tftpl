@@ -69,6 +69,13 @@ cd /opt/orders-service
 # Create data directory on the EBS volume for order logs
 mkdir -p "$EBS_MOUNT_PATH/logs"
 
+# Download code from S3
+echo "Downloading orders-service artifact from S3..."
+aws s3 cp "s3://${s3_bucket}/deploy/orders-service.tar.gz" /tmp/orders-service.tar.gz --region "${aws_region}"
+tar -xzf /tmp/orders-service.tar.gz -C /opt/orders-service
+rm -f /tmp/orders-service.tar.gz
+echo "Artifact extracted."
+
 # -----------------------------------------------------------------------------
 # Retrieve database credentials from Secrets Manager
 # -----------------------------------------------------------------------------
