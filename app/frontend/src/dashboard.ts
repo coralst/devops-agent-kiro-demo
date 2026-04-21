@@ -77,14 +77,13 @@ export function createDashboard(): Dashboard {
       });
 
       // --- Insert into DOM ---
-      const header = document.querySelector('header');
+      // Place the dashboard at the end of <main>, below the product grid
       const main = document.querySelector('main');
-      if (header && header.parentNode) {
-        // Insert between <header> and <main>
-        header.parentNode.insertBefore(sectionEl, header.nextSibling);
+      if (main) {
+        main.appendChild(sectionEl);
       } else {
-        // Fallback: prepend to <body>
-        document.body.prepend(sectionEl);
+        // Fallback: append to <body>
+        document.body.appendChild(sectionEl);
       }
 
       // --- Diagram Renderer ---
