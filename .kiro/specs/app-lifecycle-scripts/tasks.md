@@ -166,7 +166,7 @@ Tasks marked `*` are optional — they can be skipped for a faster MVP. Every pr
     - _Requirements: 5.1_
 
 - [ ] 10. Implement `app-up.sh` (the simpler path first)
-  - [ ] 10.1 Create `app-up.sh` with pre-flight + tfvars handling
+  - [x] 10.1 Create `app-up.sh` with pre-flight + tfvars handling
     - Shebang `#!/usr/bin/env bash`, `set -euo pipefail`, executable bit set
     - Source `scripts/lib/preflight.sh`, call `run_preflight_checks up`
     - On pre-flight failure, exit 1 (propagate sub-check's return)
@@ -174,14 +174,14 @@ Tasks marked `*` are optional — they can be skipped for a faster MVP. Every pr
     - Print labeled progress step prefixes per design § Observability (`==> [1/N] ...`)
     - _Requirements: 1.1, 1.2, 2.1–2.10_
 
-  - [ ] 10.2 Wire terraform init/plan/apply into `app-up.sh`
+  - [x] 10.2 Wire terraform init/plan/apply into `app-up.sh`
     - If `terraform/.terraform` does not exist, run `terraform init` in `terraform/`
     - Run `terraform plan -detailed-exitcode`; on exit 0 (no changes), print R9.1 message and exit 0; on exit 2 (changes), continue; any other code fails
     - Run `terraform apply -auto-approve`; on non-zero, print `terraform apply` to stderr and exit with the apply's exit code
     - On success, print `alb_dns_name`, `s3_website_url`, `sns_topic_arn` as labeled lines to stdout
     - _Requirements: 1.3, 1.4, 1.5, 1.6, 9.1_
 
-  - [ ] 10.3 Unit tests in `scripts/lib/app-up.test.ts`
+  - [x] 10.3 Unit tests in `scripts/lib/app-up.test.ts`
     - Pre-flight failure → exit 1, no `terraform` calls in log
     - tfvars-missing path → example copied, R2.10 message on stdout
     - `terraform plan` exit 0 → R9.1 message, no `apply` called
@@ -199,7 +199,7 @@ Tasks marked `*` are optional — they can be skipped for a faster MVP. Every pr
     - At least 100 iterations
     - _Requirements: 1.6_
 
-- [ ] 11. Checkpoint — `app-up.sh` green
+- [x] 11. Checkpoint — `app-up.sh` green
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 12. Safety-critical: `--yes` argv gate (test-first, before `app-down.sh` does anything destructive)

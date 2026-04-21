@@ -229,6 +229,8 @@ exit 0
 function renderTerraformDispatch(): string {
   return `# terraform stub: dispatch on first positional arg.
 SUB1="\${1:-}"
+SUB2="\${2:-}"
+SUB3="\${3:-}"
 
 case "$SUB1" in
   apply)
@@ -239,6 +241,21 @@ case "$SUB1" in
     ;;
   plan)
     exit "\${STUB_TERRAFORM_PLAN_RC:-0}"
+    ;;
+  output)
+    # Support 'terraform output -raw <name>'. Emits deterministic values
+    # so app-up.sh can print them after a successful apply. Tests can
+    # override per-output via STUB_TERRAFORM_OUTPUT_<NAME>.
+    if [[ "$SUB2" == "-raw" ]]; then
+      VAR_NAME="STUB_TERRAFORM_OUTPUT_\${SUB3}"
+      if [[ -n "\${!VAR_NAME:-}" ]]; then
+        printf '%s' "\${!VAR_NAME}"
+      else
+        printf 'stub-%s' "$SUB3"
+      fi
+      exit 0
+    fi
+    exit 0
     ;;
   *)
     exit 0
