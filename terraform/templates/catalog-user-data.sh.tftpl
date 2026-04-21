@@ -11,10 +11,40 @@ set -euo pipefail
 exec > /var/log/catalog-setup.log 2>&1
 echo "=== Catalog Service setup started at $(date) ==="
 
-# Install Node.js 20 via NodeSource
-dnf install -y gcc-c++ make
-curl -fsSL https://rpm.nodesource.com/setup_20.x | bash -
-dnf install -y nodejs
+# Wait for any system dnf/rpm locks to release (cloud-init package updates)
+echo "Waiting for package manager lock..."
+for i in $(seq 1 60); do
+  if fuser /var/lib/rpm/.rpm.lock >/dev/null 2>&1 || fuser /var/run/dnf.pid >/dev/null 2>&1; then
+    echo "  Package manager busy, waiting 5s... (attempt $i/60)"
+    sleep 5
+  else
+    break
+  fi
+done
+echo "Package manager available."
+
+# Install build tools first, then Node.js 20 via NodeSource
+# Retry loop handles transient RPM lock races with cloud-init background jobs
+for attempt in 1 2 3; do
+  echo "Installing gcc-c++ and make (attempt $attempt)..."
+  dnf install -y gcc-c++ make && break
+  echo "  dnf failed, retrying in 10s..."
+  sleep 10
+done
+
+for attempt in 1 2 3; do
+  echo "Setting up NodeSource repo (attempt $attempt)..."
+  curl -fsSL https://rpm.nodesource.com/setup_20.x | bash - && break
+  echo "  NodeSource setup failed, retrying in 10s..."
+  sleep 10
+done
+
+for attempt in 1 2 3; do
+  echo "Installing Node.js (attempt $attempt)..."
+  dnf install -y nodejs && break
+  echo "  dnf install nodejs failed, retrying in 10s..."
+  sleep 10
+done
 
 echo "Node.js version: $(node --version)"
 echo "npm version: $(npm --version)"

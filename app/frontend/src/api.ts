@@ -1,5 +1,6 @@
-/** Base URL for API requests. Empty string means same origin (behind ALB). */
-const API_BASE_URL = '';
+/** Base URL for API requests. Empty string means same origin (behind ALB).
+ *  In production, VITE_API_BASE_URL is set to the ALB DNS at build time. */
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '';
 
 /** Product returned by the Catalog Service. */
 export interface Product {

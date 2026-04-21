@@ -118,6 +118,20 @@ router.post(
 );
 
 /**
+ * GET /api/orders/health
+ * Returns the current health status of the Orders Service.
+ * Defined before the :id route so Express doesn't treat "health" as an order ID.
+ */
+router.get('/api/orders/health', async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    const health = await checkOrdersHealth();
+    res.status(200).json(health);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
  * GET /api/orders/:id
  * Returns a single order by ID, or 404 if not found.
  */
@@ -135,19 +149,6 @@ router.get('/api/orders/:id', async (req: Request, res: Response, next: NextFunc
 
     const order = toOrder(result.rows[0]);
     res.status(200).json(order);
-  } catch (err) {
-    next(err);
-  }
-});
-
-/**
- * GET /api/orders/health
- * Returns the current health status of the Orders Service.
- */
-router.get('/api/orders/health', async (_req: Request, res: Response, next: NextFunction) => {
-  try {
-    const health = await checkOrdersHealth();
-    res.status(200).json(health);
   } catch (err) {
     next(err);
   }

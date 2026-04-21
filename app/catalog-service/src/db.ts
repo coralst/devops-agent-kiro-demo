@@ -32,6 +32,8 @@ function loadDbConfig(): DbConfig {
 
 const config = loadDbConfig();
 
+const isProduction = process.env.NODE_ENV === 'production';
+
 export const pool = new Pool({
   host: config.host,
   port: config.port,
@@ -41,6 +43,7 @@ export const pool = new Pool({
   max: 10,
   idleTimeoutMillis: 30_000,
   connectionTimeoutMillis: 5_000,
+  ssl: isProduction ? { rejectUnauthorized: false } : false,
 });
 
 pool.on('error', (err) => {
