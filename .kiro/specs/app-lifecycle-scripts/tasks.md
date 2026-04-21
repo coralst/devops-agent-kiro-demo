@@ -303,20 +303,20 @@ Tasks marked `*` are optional — they can be skipped for a faster MVP. Every pr
     - _Requirements: 7.4, 7.5, 7.6_
 
 - [ ] 18. Idempotency tests
-  - [ ] 18.1 Add re-run cases to `app-down.test.ts`
+  - [x] 18.1 Add re-run cases to `app-down.test.ts`
     - `--yes` run after a clean prior teardown (stubs: `destroy_rc=0`, `orphans=0` both runs) → exit 0, R7.2 message
     - `--yes` run after a partial prior teardown (stubs: first run fails mid-destroy, second run completes) → exit status follows R7 truth table; S3 empty + destroy + sweep all re-attempted in order
     - For `app-up.sh`: re-run with `terraform plan` exit 0 → exit 0, R9.1 message
     - _Requirements: 9.1, 9.2, 9.3_
 
 - [ ] 19. Tag-scope safety audit (grep-based regression guard)
-  - [ ] 19.1 Write `scripts/lib/tag-scope.test.ts`
+  - [x] 19.1 Write `scripts/lib/tag-scope.test.ts`
     - Runs `grep -nE '(ec2 terminate-instances|rds delete-db-instance|ec2 delete-volume|iam delete-role|s3api delete-bucket)' app-up.sh app-down.sh scripts/lib/*.sh`
     - Asserts exit code is 1 (grep found nothing) — any match fails the test loudly with the offending line
     - This mechanically enforces R8.2 forever; any future contributor adding a forbidden direct-delete API breaks CI
     - _Requirements: 8.1, 8.2_
 
-- [ ] 20. Checkpoint — full pipeline verified end-to-end under stubs
+- [x] 20. Checkpoint — full pipeline verified end-to-end under stubs
   - Ensure all tests pass, ask the user if questions arise.
   - Every requirement now has test coverage. Every safety invariant has either a property test or the grep audit behind it.
 
@@ -327,13 +327,13 @@ Tasks marked `*` are optional — they can be skipped for a faster MVP. Every pr
   - _Requirements: none — supplemental coverage_
 
 - [ ] 22. README update
-  - [ ] 22.1 Add `## AWS Deployment (Scripted)` section to repo root `README.md`
+  - [x] 22.1 Add `## AWS Deployment (Scripted)` section to repo root `README.md`
     - Show `./app-up.sh` and `./app-down.sh --yes` as the primary flow
     - State the exact expected account (`684394110906`) and that `app-down.sh` requires `--yes`
     - Mention the three failure exit codes (1 = pre-flight/S3, 2 = missing `--yes`, 3 = orphans remain)
     - _Requirements: 12.1, 12.3_
 
-  - [ ] 22.2 Rename the existing `## AWS Deployment (Terraform)` section to `## AWS Deployment (Manual Terraform)`
+  - [x] 22.2 Rename the existing `## AWS Deployment (Terraform)` section to `## AWS Deployment (Manual Terraform)`
     - Keep all existing content for users who prefer direct Terraform control
     - _Requirements: 12.2_
 

@@ -641,3 +641,129 @@ describe('app-down.sh (final exit-code truth table)', () => {
     expect(result.stderr).toContain('AccessDenied');
   });
 });
+
+// ===========================================================================
+// Idempotency: re-run cases (task 18.1)
+// ===========================================================================
+//
+// R9.2 and R9.3 require app-down.sh to be safe to re-run. Two shapes of
+// prior state must both produce a defensible outcome:
+//
+//   1. CLEAN prior teardown — everything is already gone. The bucket
+//      is no longer in Terraform state (neither `terraform output`
+//      nor `terraform state show` resolves it), the local tfstate is
+//      gone, and the orphan sweep finds nothing. All three mutating
+//      steps (S3 emptying, terraform destroy, orphan sweep's AWS call)
+//      must either be skipped cleanly (S3, destroy) or return zero
+//      orphans (sweep). Final: exit 0 with R7.2 message. (R9.2)
+//
+//   2. PARTIAL prior teardown — a first run got stuck mid-pipeline
+//      (e.g., terraform destroy errored, leaving tfstate and the bucket
+//      still referenced). The re-run must reach every stage: S3
+//      emptying, terraform destroy, and the orphan sweep. The call log
+//      is the authoritative witness — we assert s3 rm, destroy, and
+//      get-resources all appear in order. (R9.3)
+//
+// The third requested case (R9.1 "re-run app-up.sh after successful
+// prior run → exit 0 with R9.1 message") is already covered by the
+// `app-up.sh (no changes)` describe block in app-up.test.ts. No new
+// test is needed there.
+// ===========================================================================
+
+describe('app-down.sh (idempotency)', () => {
+  it('clean prior teardown → exit 0 with R7.2, no s3 rm, no terraform destroy (R9.2)', () => {
+    // Clean prior state means: tfstate is gone (R6.4 skip), AND both
+    // bucket-resolution paths fail because the bucket isn't tracked in
+    // state anymore (R5.2 skip). The script falls straight through to
+    // the orphan sweep, which finds nothing.
+    const tempDir = createTempRepo({ withTfstate: false });
+    const harness = defaultHarness();
+
+    const result = runAppDown(tempDir, harness, ['--yes'], {
+      STUB_TERRAFORM_OUTPUT_EMPTY: '1',
+      STUB_TERRAFORM_STATE_SHOW_FAIL: '1',
+      // No STUB_ORPHAN_JSON_FILE → stub returns empty ResourceTagMappingList.
+    });
+
+    expect(result.status).toBe(0);
+    // R7.2 clean-sweep message on stdout.
+    expect(result.stdout).toContain(
+      'Orphan sweep: 0 resources remain. Teardown complete.',
+    );
+    // R5.2 skip message should also appear (bucket not resolved).
+    expect(result.stdout).toContain(
+      'No S3 frontend bucket found in Terraform state; skipping bucket emptying.',
+    );
+    // R6.4 skip message should also appear (no tfstate).
+    expect(result.stdout).toContain(
+      'No Terraform state found; skipping terraform destroy and running orphan sweep only.',
+    );
+
+    const log = harness.readCallLog();
+
+    // No aws s3 rm call (bucket wasn't resolved).
+    const rmCalls = log.filter(
+      (e) => e.cmd === 'aws' && e.argv[0] === 's3' && e.argv[1] === 'rm',
+    );
+    expect(rmCalls).toHaveLength(0);
+
+    // No terraform destroy call (tfstate absent).
+    const destroyCalls = log.filter(
+      (e) => e.cmd === 'terraform' && e.argv[0] === 'destroy',
+    );
+    expect(destroyCalls).toHaveLength(0);
+
+    // Orphan sweep still ran — that's the authority on teardown success.
+    const sweepCalls = log.filter(
+      (e) =>
+        e.cmd === 'aws' &&
+        e.argv[0] === 'resourcegroupstaggingapi' &&
+        e.argv[1] === 'get-resources',
+    );
+    expect(sweepCalls).toHaveLength(1);
+  });
+
+  it('partial prior teardown → re-runs s3 rm, terraform destroy, and sweep in order (R9.3)', () => {
+    // Partial prior state means: tfstate still exists (prior destroy
+    // didn't finish), the bucket still resolves, AND the orphan sweep
+    // still finds zero tagged resources once destroy finally completes.
+    // Every stage must re-attempt; the call log is the witness.
+    const tempDir = createTempRepo({ withTfstate: true });
+    const harness = defaultHarness();
+
+    const result = runAppDown(tempDir, harness, ['--yes'], {
+      STUB_TERRAFORM_OUTPUT_s3_bucket_name: 'frontend-devops-demo-xyz',
+      STUB_S3_BUCKET_VERSIONING: 'Disabled',
+      STUB_TERRAFORM_DESTROY_RC: '0',
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain(
+      'Orphan sweep: 0 resources remain. Teardown complete.',
+    );
+
+    const log = harness.readCallLog();
+
+    // Locate each of the three mutating/terminal stages in the log.
+    const s3RmIdx = log.findIndex(
+      (e) => e.cmd === 'aws' && e.argv[0] === 's3' && e.argv[1] === 'rm',
+    );
+    const destroyIdx = log.findIndex(
+      (e) => e.cmd === 'terraform' && e.argv[0] === 'destroy',
+    );
+    const sweepIdx = log.findIndex(
+      (e) =>
+        e.cmd === 'aws' &&
+        e.argv[0] === 'resourcegroupstaggingapi' &&
+        e.argv[1] === 'get-resources',
+    );
+
+    // All three must have run on the re-run...
+    expect(s3RmIdx).toBeGreaterThanOrEqual(0);
+    expect(destroyIdx).toBeGreaterThanOrEqual(0);
+    expect(sweepIdx).toBeGreaterThanOrEqual(0);
+    // ...and in the canonical order: empty bucket → destroy → sweep.
+    expect(s3RmIdx).toBeLessThan(destroyIdx);
+    expect(destroyIdx).toBeLessThan(sweepIdx);
+  });
+});

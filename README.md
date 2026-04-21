@@ -43,31 +43,51 @@ CloudWatch alarms detect the degradation and publish to an SNS topic, ready for 
 - **Orders Service** — handles checkout, writes order logs to a dedicated EBS volume. This is the fault target.
 - **Frontend** — vanilla TypeScript UI hosted on S3 (or Vite dev server locally).
 
-## Quick Start (Local Development)
+## Running the App
+
+There are two ways to run this project: **locally** (for development, no AWS cost) and the **full AWS deploy** (for the real fault-injection demo). Each has a clear launch and shutdown command.
+
+| Mode              | Launch command          | Shutdown command            | What it gives you                                                           |
+|-------------------|-------------------------|-----------------------------|-----------------------------------------------------------------------------|
+| 🧪 Local dev      | `./dev.sh`              | Ctrl+C in the terminal      | Browser UI + Postgres in Docker. No EBS, no fault injection, zero AWS cost. |
+| ☁️ Full AWS deploy | `./app-up.sh`           | `./app-down.sh --yes`       | Full AWS stack (VPC, ALB, EC2, RDS, EBS, S3, CloudWatch, SNS). ~$50–80/mo.  |
+
+Jump to: [Local dev setup](#local-dev-setup) · [Full AWS deploy](#full-aws-deploy) · [Testing](#running-tests)
+
+---
+
+## Local dev setup
+
+Runs the whole app on your laptop using Docker for Postgres and Node for the services. No AWS account needed, no fault injection (that part requires EBS).
 
 ### Prerequisites
 
 - **Node.js 20+**
-- **Docker** (for PostgreSQL)
+- **Docker** (for PostgreSQL — `docker compose` must work)
 
-### 1. Install dependencies
+### 1. Install dependencies (one time)
 
 ```bash
-# Install each service's dependencies
 npm install --prefix app/shared
 npm install --prefix app/catalog-service
 npm install --prefix app/orders-service
 npm install --prefix app/frontend
 ```
 
-### 2. Run everything
+### 2. Start the dev environment
 
 ```bash
-chmod +x dev.sh
+chmod +x dev.sh     # first time only
 ./dev.sh
 ```
 
-This starts PostgreSQL in Docker, both backend services, and the frontend dev server. You'll see:
+`dev.sh` starts:
+- PostgreSQL in Docker (port 5432)
+- Catalog Service (port 3000)
+- Orders Service (port 3001)
+- Frontend dev server with hot reload (port 5173)
+
+When it's ready you'll see:
 
 ```
   Frontend:  http://localhost:5173
@@ -75,17 +95,89 @@ This starts PostgreSQL in Docker, both backend services, and the frontend dev se
   Orders:    http://localhost:3001/api/orders/health
 ```
 
-### 3. Open the app
+Open **http://localhost:5173** in your browser.
 
-Go to **http://localhost:5173** in your browser.
+### 3. Stop the dev environment
 
-### 4. Try the fault injection
+Press **Ctrl+C** in the terminal running `dev.sh`. The script's cleanup handler will:
+- Kill the catalog, orders, and frontend Node processes
+- Run `docker compose down` to stop PostgreSQL
 
-1. Click **"Buy"** on the **Mystery Box of Chaos** (the red/special item)
-2. Try buying any other product — it will fail with a 500 error
-3. Click **"Reset Fault"** to clear the fault and restore normal operation
+If anything gets stuck, run `docker compose down` manually to force-stop Postgres.
 
-Press **Ctrl+C** in the terminal to stop everything.
+### Dev vs prod behavior
+
+The fault-injection trigger item exists locally but won't actually cause a sustained fault — the `fault-inject.sh` script needs a real EBS volume (plus `fio` and `dd` with GNU flags) to degrade the volume meaningfully. Local "fault" demos just return normal responses. Run the full AWS deploy to see the real fault-isolation behavior.
+
+---
+
+## Full AWS deploy
+
+Use this when you want to run the real fault-injection demo on AWS infrastructure. Two scripts wrap Terraform: `app-up.sh` to launch everything and `app-down.sh --yes` to tear it all down with zero leftover resources.
+
+### Prerequisites
+
+- **AWS credentials** configured for account `684394110906` (the scripts refuse to run against any other account)
+- **AWS CLI** installed and on `PATH`
+- **Terraform** installed (on macOS, `app-up.sh` will auto-install via Homebrew if missing)
+- **jq** installed (used by the orphan sweep)
+
+### Launch
+
+```bash
+./app-up.sh
+```
+
+This runs, in order:
+1. **Pre-flight checks** — aws/terraform/jq present, credentials valid, account ID matches `684394110906`
+2. **Config bootstrap** — copies `terraform/terraform.tfvars.example` to `terraform/terraform.tfvars` if missing
+3. **`terraform init`** — only if `terraform/.terraform/` doesn't exist yet
+4. **`terraform plan -detailed-exitcode`** — if no changes needed, prints `No infrastructure changes required.` and exits cleanly
+5. **`terraform apply -auto-approve`** — builds/updates the stack
+6. **Print outputs** — the ALB DNS, S3 website URL, and SNS topic ARN so you can immediately start using the app
+
+Deploys take ~10-15 minutes end-to-end, mostly RDS provisioning time. Re-running `app-up.sh` after a clean deploy is a no-op (exits cleanly with the "no changes" message).
+
+**Where to access the app after launch:**
+- Browse to the `s3_website_url` printed at the end — that's the frontend
+- The ALB DNS serves the API under `/api/catalog/*` and `/api/orders/*`
+
+### Shutdown
+
+```bash
+./app-down.sh --yes
+```
+
+**The `--yes` flag is required.** Without it, the script exits with status 2 and does absolutely nothing — this is the guard against accidental destructive runs.
+
+The shutdown runs:
+1. **Pre-flight checks** (same as launch, but no brew auto-install)
+2. **Empty the S3 frontend bucket** — handles versioning, deletes in batches of 1000
+3. **`terraform destroy -auto-approve`** — tears down every Terraform-managed resource
+4. **Orphan sweep** — queries the AWS Resource Groups Tagging API for any resources still tagged `Project=devops-demo` AND `ManagedBy=terraform`, and fails loudly if any remain
+
+Exit code `0` means the stack is fully gone. Exit code `3` means orphans were found — inspect the ARN list on stderr, delete any leftovers manually, then re-run `app-down.sh --yes` (the script is idempotent, safe to re-run).
+
+### Safety model
+
+- **Account guard** — both scripts call `aws sts get-caller-identity` and refuse to run if the account isn't `684394110906`
+- **Hardcoded tag filter** — the orphan sweep uses a literal `Key=Project,Values=devops-demo Key=ManagedBy,Values=terraform` string with no variable substitution, so ambient env vars can't widen the scope
+- **No direct delete APIs** — the scripts never call `aws ec2 terminate-instances`, `aws rds delete-db-instance`, etc. Every delete flows through `terraform destroy` or S3 object-emptying. A grep-based CI test (`scripts/lib/tag-scope.test.ts`) enforces this mechanically
+- **`--yes` is required for destroy** — missing flag always exits 2 before any subprocess spawns
+
+### Exit codes
+
+| Code  | Meaning                                                     |
+|-------|-------------------------------------------------------------|
+| 0     | Success (deployment complete, or teardown with clean sweep) |
+| 1     | Pre-flight check failed, or S3 emptying failed              |
+| 2     | Missing `--yes` flag (app-down.sh only)                     |
+| 3     | Orphans remain after destroy — see stderr for ARN list      |
+| other | Terraform apply/destroy exit code propagated                |
+
+### Estimated cost
+
+~$50–80/month running 24/7. The biggest line items are NAT Gateway, ALB, and RDS. Tear down with `./app-down.sh --yes` as soon as you're done demoing.
 
 ## Running Tests
 
@@ -102,9 +194,9 @@ npm run test:orders
 
 Tests include unit tests and property-based tests (using fast-check) that validate correctness properties like fault isolation, checkout validation, and health check accuracy.
 
-## AWS Deployment (Terraform)
+## AWS Deployment (Manual Terraform)
 
-The full AWS infrastructure is defined in Terraform under the `terraform/` directory.
+If you prefer to drive Terraform directly instead of using `app-up.sh` / `app-down.sh`, the full infrastructure is defined under `terraform/`.
 
 ### Prerequisites
 
