@@ -1,5 +1,9 @@
 import fs from 'node:fs/promises';
+import { exec as execCb } from 'node:child_process';
+import { promisify } from 'node:util';
 import { Order } from '../../shared/types';
+
+const execAsync = promisify(execCb);
 
 /** Custom error for EBS volume I/O failures. */
 export class EbsWriteError extends Error {
@@ -15,16 +19,41 @@ export class EbsWriteError extends Error {
 /** Default timeout for EBS write operations (ms). */
 const EBS_WRITE_TIMEOUT_MS = 10_000;
 
+/** Disk usage threshold (%) above which writes are rejected immediately. */
+const DISK_FULL_THRESHOLD = 95;
+
+/**
+ * Return the current disk usage percentage for the given mount path.
+ */
+async function getDiskUsagePercent(mountPath: string): Promise<number> {
+  try {
+    const { stdout } = await execAsync(`df --output=pcent ${mountPath} | tail -1`);
+    const pct = parseInt(stdout.trim().replace('%', ''), 10);
+    return Number.isNaN(pct) ? 0 : pct;
+  } catch {
+    return 0;
+  }
+}
+
 /**
  * Append an order log entry to the EBS-mounted orders.log file.
  *
- * Throws {@link EbsWriteError} if the write does not complete within
- * the configured timeout or encounters an I/O error.
+ * Throws {@link EbsWriteError} if the disk is above 95% full, if the
+ * write does not complete within the configured timeout, or if an I/O
+ * error occurs.
  */
 export async function writeOrderLog(order: Order, mountPath?: string): Promise<void> {
   const ebsPath = mountPath ?? process.env.EBS_MOUNT_PATH ?? '/mnt/ebs-data';
   const logFile = `${ebsPath}/orders.log`;
   const logLine = `${order.id} | ${order.productId} | ${order.createdAt} | ${order.status}\n`;
+
+  // Fail fast if disk is nearly full
+  const usage = await getDiskUsagePercent(ebsPath);
+  if (usage >= DISK_FULL_THRESHOLD) {
+    throw new EbsWriteError(
+      `EBS write timed out — volume degraded (disk ${usage}% full, threshold ${DISK_FULL_THRESHOLD}%)`,
+    );
+  }
 
   try {
     await withTimeout(
