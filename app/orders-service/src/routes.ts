@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { Order, Product, CheckoutResponse, ResetResponse } from '../../shared/types';
 import { query } from './db';
 import { writeOrderLog } from './order-log';
-import { resetFault, executeFaultInjection } from './fault-inject';
+import { resetFault, executeFaultInjection, getFaultStatus } from './fault-inject';
 import { checkOrdersHealth } from './health';
 
 export const router = Router();
