@@ -6,7 +6,7 @@ import { FaultStatus, ResetResponse } from '../../shared/types';
 
 const exec = promisify(execCb);
 
-const SCRIPTS_DIR = path.resolve(__dirname, '..', 'scripts');
+const SCRIPTS_DIR = path.resolve(__dirname, '..', '..', 'scripts');
 
 /**
  * Return the current disk usage percentage for the given mount path.

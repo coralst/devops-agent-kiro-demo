@@ -12,17 +12,33 @@ function formatPrice(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
 }
 
-/** Show a temporary notification banner. */
+/** Active notification timer — cleared when a new notification replaces the old one. */
+let notificationTimer: ReturnType<typeof setTimeout> | null = null;
+
+/** Show a temporary notification banner.
+ *  Success/info stay for 15 s, errors stay for 20 s. Click to dismiss early. */
 function showNotification(
   message: string,
   type: 'success' | 'error' | 'info',
 ): void {
+  if (notificationTimer) clearTimeout(notificationTimer);
+
   notification.textContent = message;
   notification.className = `notification ${type}`;
-  setTimeout(() => {
+
+  const duration = type === 'error' ? 20_000 : 15_000;
+  notificationTimer = setTimeout(() => {
     notification.className = 'notification hidden';
-  }, 5000);
+    notificationTimer = null;
+  }, duration);
 }
+
+/** Dismiss notification on click. */
+notification.addEventListener('click', () => {
+  if (notificationTimer) clearTimeout(notificationTimer);
+  notification.className = 'notification hidden';
+  notificationTimer = null;
+});
 
 /** Build the HTML for a single product card. */
 function createProductCard(product: Product): HTMLElement {

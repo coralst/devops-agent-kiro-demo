@@ -146,6 +146,7 @@ main {
   border-radius: 4px;
   margin-bottom: 1.5rem;
   font-weight: 500;
+  cursor: pointer;
 }
 
 .notification.hidden {
