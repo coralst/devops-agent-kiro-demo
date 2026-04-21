@@ -16,31 +16,31 @@ Tasks marked `*` are optional — they can be skipped for a faster MVP. Every pr
 ## Tasks
 
 - [ ] 1. Bootstrap the scripts/lib test harness
-  - [ ] 1.1 Create `scripts/lib/package.json`
+  - [x] 1.1 Create `scripts/lib/package.json`
     - Mirror `app/orders-service/package.json` devDependencies: `vitest ^2.1.0`, `fast-check ^3.22.0`, `@types/node ^22.0.0`, `typescript ^5.5.0`, `tsx ^4.21.0`
     - Name the package `@demo/scripts-lib`, set `"private": true`
     - Add `"test": "vitest"` and `"typecheck": "tsc --noEmit"` scripts
     - _Requirements: 11.4_
 
-  - [ ] 1.2 Create `scripts/lib/vite.config.ts` and `scripts/lib/tsconfig.json`
+  - [x] 1.2 Create `scripts/lib/vite.config.ts` and `scripts/lib/tsconfig.json`
     - Vite config matches `app/orders-service/vite.config.ts` exactly (`defineConfig` from `vitest/config`, `test: { globals: true }`)
     - tsconfig matches `app/orders-service/tsconfig.json` shape (strict mode, ES2022 target)
     - _Requirements: 11.4_
 
-  - [ ] 1.3 Add `test:scripts` entry to root `package.json`
+  - [x] 1.3 Add `test:scripts` entry to root `package.json`
     - Add `"test:scripts": "npm test --prefix scripts/lib -- --run"`
     - Update aggregate `"test"` to `"npm run test:catalog && npm run test:orders && npm run test:scripts"`
     - Do not touch any other root script
     - _Requirements: 11.4_
 
 - [ ] 2. Build the PATH-stub test harness
-  - [ ] 2.1 Implement `scripts/lib/test-helpers/spawn-bash.ts`
+  - [x] 2.1 Implement `scripts/lib/test-helpers/spawn-bash.ts`
     - Thin wrapper around `child_process.spawnSync('bash', ['-c', <script>], { input, env, encoding: 'utf8' })`
     - Accepts: bash source-line to execute, optional stdin string, optional env overrides
     - Returns `{ status, stdout, stderr }`
     - _Requirements: 10.4, 11.4_
 
-  - [ ] 2.2 Implement `scripts/lib/test-helpers/make-stub-bin.ts`
+  - [x] 2.2 Implement `scripts/lib/test-helpers/make-stub-bin.ts`
     - Exports `makeStubBin({ commands })` returning `{ stubDir, callLogPath, cleanup }`
     - Creates a tempdir, writes one executable bash script per command (`aws`, `terraform`, `brew`, optionally `jq`)
     - Each stub logs its argv + stdin as a JSON line to `callLogPath` before exiting
@@ -53,11 +53,11 @@ Tasks marked `*` are optional — they can be skipped for a faster MVP. Every pr
     - _Requirements: 11.4_
 
 - [ ] 3. Safety-critical primitive: tag filter (test-first)
-  - [ ] 3.1 Write failing tests in `scripts/lib/tag-filter.test.ts`
+  - [x] 3.1 Write failing tests in `scripts/lib/tag-filter.test.ts`
     - Sources the not-yet-existing `scripts/lib/tag-filter.sh` and asserts `build_tag_filter_args` emits exactly `--tag-filters Key=Project,Values=devops-demo Key=ManagedBy,Values=terraform` on stdout with empty stderr and exit 0
     - _Requirements: 8.3, 10.1, 11.1_
 
-  - [ ] 3.2 Implement `scripts/lib/tag-filter.sh`
+  - [x] 3.2 Implement `scripts/lib/tag-filter.sh`
     - `build_tag_filter_args()` writes the hardcoded literal string to stdout — no variable interpolation, no reading from tfvars, no arguments
     - File is safely sourceable with no side effects at source-time
     - Shebang `#!/usr/bin/env bash`, `set -euo pipefail`, Bash 3.2-compatible (macOS default)
@@ -73,13 +73,13 @@ Tasks marked `*` are optional — they can be skipped for a faster MVP. Every pr
     - _Requirements: 8.3, 10.1_
 
 - [ ] 4. Safety-critical primitive: orphan ARN parser (test-first)
-  - [ ] 4.1 Write failing tests in `scripts/lib/orphan-parse.test.ts`
+  - [x] 4.1 Write failing tests in `scripts/lib/orphan-parse.test.ts`
     - Three example cases per R11.2: empty `ResourceTagMappingList`, single element, multi-element
     - Asserts one ARN per line, input order preserved, empty stdout for empty list, empty stderr on success
     - Additional case: malformed JSON → non-zero exit, jq error on stderr
     - _Requirements: 10.2, 11.2_
 
-  - [ ] 4.2 Implement `scripts/lib/orphan-parse.sh`
+  - [x] 4.2 Implement `scripts/lib/orphan-parse.sh`
     - `parse_orphan_arns()` reads stdin and runs `jq -r '.ResourceTagMappingList[].ResourceARN'`
     - Propagates jq's non-zero exit on parse failure
     - No arguments, no side effects, safely sourceable
@@ -94,12 +94,12 @@ Tasks marked `*` are optional — they can be skipped for a faster MVP. Every pr
     - At least 100 iterations
     - _Requirements: 10.3, 11.3_
 
-- [ ] 5. Checkpoint — tag-scope primitives verified
+- [x] 5. Checkpoint — tag-scope primitives verified
   - Ensure all tests pass, ask the user if questions arise.
   - At this point the two purest safety primitives are locked in. Nothing downstream can silently widen the tag scope or miscount orphans.
 
 - [ ] 6. Pre-flight checks (fail-closed)
-  - [ ] 6.1 Implement individual check functions in `scripts/lib/preflight.sh`
+  - [~] 6.1 Implement individual check functions in `scripts/lib/preflight.sh`
     - `readonly EXPECTED_ACCOUNT_ID="684394110906"` at top of file
     - `check_aws_cli()` — `command -v aws`, error string per R2.2 / R4.2
     - `check_terraform_cli(mode)` — `command -v terraform`; in `up` mode on Darwin with brew, run `brew tap hashicorp/tap && brew install hashicorp/tap/terraform`; in `down` mode NEVER auto-install; error strings per R2.5 / R4.4
@@ -109,13 +109,13 @@ Tasks marked `*` are optional — they can be skipped for a faster MVP. Every pr
     - Each function writes exact error strings to stderr, returns 0/1, has no mutating side effects beyond the one optional brew install
     - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 2.9, 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 4.8_
 
-  - [ ] 6.2 Implement `run_preflight_checks(mode)` orchestrator
+  - [~] 6.2 Implement `run_preflight_checks(mode)` orchestrator
     - Calls each check in fixed order: `check_aws_cli`, `check_terraform_cli $mode`, `check_aws_credentials $mode`, `check_aws_account_id $mode`, `check_jq`
     - Short-circuits on first non-zero return, propagates that return code
     - Never emits a "proceed" sentinel on failure (callers rely on exit code only)
     - _Requirements: 2.1–2.9, 4.1–4.8_
 
-  - [ ] 6.3 Unit tests in `scripts/lib/preflight.test.ts`
+  - [~] 6.3 Unit tests in `scripts/lib/preflight.test.ts`
     - Per-check: exact stderr byte sequence, exit code, whether stub `aws`/`terraform`/`brew` was invoked
     - `up` mode + Darwin + brew → auto-install path called; `up` mode + Darwin + no brew → R2.5 error; `down` mode + missing terraform → R4.4 error with NO brew invocation
     - Account-mismatch case: `STUB_AWS_ACCOUNT_ID=000000000000` → error message contains that value
@@ -131,7 +131,7 @@ Tasks marked `*` are optional — they can be skipped for a faster MVP. Every pr
     - _Requirements: 2.1–2.9, 4.1–4.8_
 
 - [ ] 7. S3 bucket emptying helper
-  - [ ] 7.1 Implement `scripts/lib/s3-empty.sh`
+  - [~] 7.1 Implement `scripts/lib/s3-empty.sh`
     - `empty_s3_bucket(bucket_name, region)` — runs `aws s3 rm s3://<bucket>/ --recursive --region <region>`
     - Probe versioning via `aws s3api get-bucket-versioning`; if `Status` is `Enabled` or `Suspended`, run paginated `list-object-versions` + `delete-objects` loop with **batch size strictly ≤ 1000** (use `jq` to chunk the payload)
     - Treat `NoSuchBucket` response as success (already-deleted bucket is a valid terminal state)
@@ -139,7 +139,7 @@ Tasks marked `*` are optional — they can be skipped for a faster MVP. Every pr
     - Does NOT delete the bucket itself — that's Terraform's job
     - _Requirements: 5.3, 5.4, 5.5_
 
-  - [ ] 7.2 Unit tests in `scripts/lib/s3-empty.test.ts`
+  - [~] 7.2 Unit tests in `scripts/lib/s3-empty.test.ts`
     - Non-versioned bucket → single `aws s3 rm --recursive` call; no `delete-objects` calls
     - Versioned bucket with small object count → one `delete-objects` call with all versions
     - `NoSuchBucket` error from `aws s3 rm` → exit 0
@@ -155,18 +155,18 @@ Tasks marked `*` are optional — they can be skipped for a faster MVP. Every pr
     - At least 100 iterations
     - _Requirements: 5.4_
 
-- [ ] 8. Checkpoint — all helpers complete and green
+- [~] 8. Checkpoint — all helpers complete and green
   - Ensure all tests pass, ask the user if questions arise.
   - All four `scripts/lib/*.sh` files are implemented and independently tested. The next phase is composition.
 
 - [ ] 9. Terraform outputs integration
-  - [ ] 9.1 Add `s3_bucket_name` output to `terraform/outputs.tf`
+  - [~] 9.1 Add `s3_bucket_name` output to `terraform/outputs.tf`
     - `output "s3_bucket_name" { description = "..."; value = aws_s3_bucket.frontend.id }`
     - Keep all existing outputs unchanged
     - _Requirements: 5.1_
 
 - [ ] 10. Implement `app-up.sh` (the simpler path first)
-  - [ ] 10.1 Create `app-up.sh` with pre-flight + tfvars handling
+  - [~] 10.1 Create `app-up.sh` with pre-flight + tfvars handling
     - Shebang `#!/usr/bin/env bash`, `set -euo pipefail`, executable bit set
     - Source `scripts/lib/preflight.sh`, call `run_preflight_checks up`
     - On pre-flight failure, exit 1 (propagate sub-check's return)
@@ -174,14 +174,14 @@ Tasks marked `*` are optional — they can be skipped for a faster MVP. Every pr
     - Print labeled progress step prefixes per design § Observability (`==> [1/N] ...`)
     - _Requirements: 1.1, 1.2, 2.1–2.10_
 
-  - [ ] 10.2 Wire terraform init/plan/apply into `app-up.sh`
+  - [~] 10.2 Wire terraform init/plan/apply into `app-up.sh`
     - If `terraform/.terraform` does not exist, run `terraform init` in `terraform/`
     - Run `terraform plan -detailed-exitcode`; on exit 0 (no changes), print R9.1 message and exit 0; on exit 2 (changes), continue; any other code fails
     - Run `terraform apply -auto-approve`; on non-zero, print `terraform apply` to stderr and exit with the apply's exit code
     - On success, print `alb_dns_name`, `s3_website_url`, `sns_topic_arn` as labeled lines to stdout
     - _Requirements: 1.3, 1.4, 1.5, 1.6, 9.1_
 
-  - [ ] 10.3 Unit tests in `scripts/lib/app-up.test.ts`
+  - [~] 10.3 Unit tests in `scripts/lib/app-up.test.ts`
     - Pre-flight failure → exit 1, no `terraform` calls in log
     - tfvars-missing path → example copied, R2.10 message on stdout
     - `terraform plan` exit 0 → R9.1 message, no `apply` called
@@ -199,18 +199,18 @@ Tasks marked `*` are optional — they can be skipped for a faster MVP. Every pr
     - At least 100 iterations
     - _Requirements: 1.6_
 
-- [ ] 11. Checkpoint — `app-up.sh` green
+- [~] 11. Checkpoint — `app-up.sh` green
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 12. Safety-critical: `--yes` argv gate (test-first, before `app-down.sh` does anything destructive)
-  - [ ] 12.1 Write failing tests for the gate in `scripts/lib/app-down.test.ts`
+  - [~] 12.1 Write failing tests for the gate in `scripts/lib/app-down.test.ts`
     - Empty argv → exit 2, R3.2 error on stderr, zero `aws`/`terraform` calls in log
     - Argv `["--no"]` → exit 2, zero calls
     - Argv `["--yes"]` → gate passes (exit is NOT 2; other pre-flight failures may exit 1, that's fine here)
     - Gate check happens BEFORE any `source` of helpers (assert no helper-side-effect file is created when gate fails)
     - _Requirements: 3.2, 3.3, 8.1, 8.2_
 
-  - [ ] 12.2 Create `app-down.sh` with ONLY the argv gate
+  - [~] 12.2 Create `app-down.sh` with ONLY the argv gate
     - Shebang + `set -euo pipefail`, executable bit set
     - Parse argv with a literal `for arg in "$@"; do [[ "$arg" == "--yes" ]] && yes_flag=1; done` — no getopt, no fuzzy matching, no `-y`
     - If gate fails, print R3.2 to stderr and exit 2 BEFORE sourcing any helper or spawning any subprocess
@@ -226,24 +226,24 @@ Tasks marked `*` are optional — they can be skipped for a faster MVP. Every pr
     - At least 100 iterations
     - _Requirements: 3.2, 8.1, 8.2_
 
-- [ ] 13. Checkpoint — `--yes` gate locked in
+- [~] 13. Checkpoint — `--yes` gate locked in
   - Ensure all tests pass, ask the user if questions arise.
   - From here on, every new layer is added AFTER the gate, so we can't regress the gate's placement.
 
 - [ ] 14. Layer: pre-flight inside `app-down.sh`
-  - [ ] 14.1 Add pre-flight invocation after the `--yes` gate
+  - [~] 14.1 Add pre-flight invocation after the `--yes` gate
     - Source `scripts/lib/preflight.sh`, call `run_preflight_checks down`
     - On failure, exit 1 with the sub-check's return code
     - _Requirements: 4.1–4.8_
 
-  - [ ] 14.2 Extend `app-down.test.ts` with pre-flight cases
+  - [~] 14.2 Extend `app-down.test.ts` with pre-flight cases
     - `--yes` + missing aws CLI → exit 1, R4.2 error
     - `--yes` + wrong account → exit 1, R4.8 error containing the wrong account ID
     - `--yes` + all pre-flight passes → proceeds further (terraform/aws calls appear in log)
     - _Requirements: 4.1–4.8_
 
 - [ ] 15. Layer: S3 bucket resolution + emptying inside `app-down.sh`
-  - [ ] 15.1 Add bucket resolution + `empty_s3_bucket` invocation
+  - [~] 15.1 Add bucket resolution + `empty_s3_bucket` invocation
     - Source `scripts/lib/s3-empty.sh`
     - Resolve bucket via `terraform output -raw s3_bucket_name` in `terraform/`
     - On resolution failure, fall back to `terraform state show aws_s3_bucket.frontend` parsing
@@ -251,7 +251,7 @@ Tasks marked `*` are optional — they can be skipped for a faster MVP. Every pr
     - Otherwise call `empty_s3_bucket <bucket> <region>`; on non-zero return, exit 1 with failing command on stderr
     - _Requirements: 5.1, 5.2, 5.3, 5.5_
 
-  - [ ] 15.2 Extend `app-down.test.ts` with S3 cases
+  - [~] 15.2 Extend `app-down.test.ts` with S3 cases
     - Bucket resolved + empty succeeds → `aws s3 rm` call in log, proceeds to destroy
     - `terraform output` fails → fallback to `state show` path runs
     - Neither works → R5.2 message on stdout, no `aws s3 rm` call, proceeds to destroy
@@ -259,33 +259,33 @@ Tasks marked `*` are optional — they can be skipped for a faster MVP. Every pr
     - _Requirements: 5.1, 5.2, 5.3, 5.5_
 
 - [ ] 16. Layer: `terraform destroy` inside `app-down.sh`
-  - [ ] 16.1 Add `terraform destroy` invocation
+  - [~] 16.1 Add `terraform destroy` invocation
     - If `terraform/terraform.tfstate` does not exist, print R6.4 message and set `destroy_rc=0`
     - Otherwise run `terraform destroy -auto-approve` in `terraform/` and record exit code in `destroy_rc`
     - Do NOT exit on non-zero `destroy_rc` — orphan sweep must still run
     - _Requirements: 6.1, 6.2, 6.3, 6.4_
 
-  - [ ] 16.2 Extend `app-down.test.ts` with destroy cases
+  - [~] 16.2 Extend `app-down.test.ts` with destroy cases
     - Missing tfstate → R6.4 message, no `terraform destroy` call, orphan sweep still runs
     - `STUB_TERRAFORM_DESTROY_RC=0` → orphan sweep runs after destroy succeeds
     - `STUB_TERRAFORM_DESTROY_RC=1` → orphan sweep still runs, script does NOT exit yet
     - _Requirements: 6.1, 6.2, 6.3, 6.4_
 
 - [ ] 17. Layer: orphan sweep + final exit-code contract
-  - [ ] 17.1 Wire orphan sweep into `app-down.sh`
+  - [~] 17.1 Wire orphan sweep into `app-down.sh`
     - Source `scripts/lib/tag-filter.sh` and `scripts/lib/orphan-parse.sh`
     - Call `aws resourcegroupstaggingapi get-resources --region <region> $(build_tag_filter_args)`
     - Pipe response to `parse_orphan_arns`, count lines into `orphan_count`
     - If the `aws` call itself fails (non-JSON response or non-zero exit), exit with that `aws` exit code and print the failing command to stderr (per design § Error Handling — this is NOT exit 3)
     - _Requirements: 7.1, 8.3_
 
-  - [ ] 17.2 Implement the final exit-code truth table
+  - [~] 17.2 Implement the final exit-code truth table
     - `orphan_count > 0` → print R7.3 header + each ARN on its own line to stderr, exit 3 (regardless of `destroy_rc`)
     - `orphan_count == 0 && destroy_rc == 0` → print R7.2 message to stdout, exit 0
     - `orphan_count == 0 && destroy_rc != 0` → print R7.6 reconciliation message to stdout, exit 0
     - _Requirements: 7.2, 7.3, 7.4, 7.5, 7.6_
 
-  - [ ] 17.3 Extend `app-down.test.ts` with final-state cases
+  - [~] 17.3 Extend `app-down.test.ts` with final-state cases
     - `(destroy_rc=0, orphans=0)` → exit 0, R7.2 message on stdout
     - `(destroy_rc=0, orphans=2)` → exit 3, R7.3 header + both ARNs on stderr
     - `(destroy_rc=1, orphans=0)` → exit 0, R7.6 message on stdout
@@ -303,20 +303,20 @@ Tasks marked `*` are optional — they can be skipped for a faster MVP. Every pr
     - _Requirements: 7.4, 7.5, 7.6_
 
 - [ ] 18. Idempotency tests
-  - [ ] 18.1 Add re-run cases to `app-down.test.ts`
+  - [~] 18.1 Add re-run cases to `app-down.test.ts`
     - `--yes` run after a clean prior teardown (stubs: `destroy_rc=0`, `orphans=0` both runs) → exit 0, R7.2 message
     - `--yes` run after a partial prior teardown (stubs: first run fails mid-destroy, second run completes) → exit status follows R7 truth table; S3 empty + destroy + sweep all re-attempted in order
     - For `app-up.sh`: re-run with `terraform plan` exit 0 → exit 0, R9.1 message
     - _Requirements: 9.1, 9.2, 9.3_
 
 - [ ] 19. Tag-scope safety audit (grep-based regression guard)
-  - [ ] 19.1 Write `scripts/lib/tag-scope.test.ts`
+  - [~] 19.1 Write `scripts/lib/tag-scope.test.ts`
     - Runs `grep -nE '(ec2 terminate-instances|rds delete-db-instance|ec2 delete-volume|iam delete-role|s3api delete-bucket)' app-up.sh app-down.sh scripts/lib/*.sh`
     - Asserts exit code is 1 (grep found nothing) — any match fails the test loudly with the offending line
     - This mechanically enforces R8.2 forever; any future contributor adding a forbidden direct-delete API breaks CI
     - _Requirements: 8.1, 8.2_
 
-- [ ] 20. Checkpoint — full pipeline verified end-to-end under stubs
+- [~] 20. Checkpoint — full pipeline verified end-to-end under stubs
   - Ensure all tests pass, ask the user if questions arise.
   - Every requirement now has test coverage. Every safety invariant has either a property test or the grep audit behind it.
 
@@ -327,13 +327,13 @@ Tasks marked `*` are optional — they can be skipped for a faster MVP. Every pr
   - _Requirements: none — supplemental coverage_
 
 - [ ] 22. README update
-  - [ ] 22.1 Add `## AWS Deployment (Scripted)` section to repo root `README.md`
+  - [~] 22.1 Add `## AWS Deployment (Scripted)` section to repo root `README.md`
     - Show `./app-up.sh` and `./app-down.sh --yes` as the primary flow
     - State the exact expected account (`684394110906`) and that `app-down.sh` requires `--yes`
     - Mention the three failure exit codes (1 = pre-flight/S3, 2 = missing `--yes`, 3 = orphans remain)
     - _Requirements: 12.1, 12.3_
 
-  - [ ] 22.2 Rename the existing `## AWS Deployment (Terraform)` section to `## AWS Deployment (Manual Terraform)`
+  - [~] 22.2 Rename the existing `## AWS Deployment (Terraform)` section to `## AWS Deployment (Manual Terraform)`
     - Keep all existing content for users who prefer direct Terraform control
     - _Requirements: 12.2_
 
