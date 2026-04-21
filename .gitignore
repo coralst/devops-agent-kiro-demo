@@ -84,3 +84,6 @@ terraform.tfvars
 *.auto.tfvars
 crash.log
 crash.*.log
+
+# Local IAM policy documents (apply-then-discard artifacts)
+terraform-policy.json
