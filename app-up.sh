@@ -94,8 +94,8 @@ fi
 echo ""
 echo "Deployment complete. Outputs:"
 ALB=$(cd "$TF_DIR" && terraform output -raw alb_dns_name 2>/dev/null || echo "")
-S3=$(cd "$TF_DIR" && terraform output -raw s3_website_url 2>/dev/null || echo "")
+CF=$(cd "$TF_DIR" && terraform output -raw cloudfront_domain_name 2>/dev/null || echo "")
 SNS=$(cd "$TF_DIR" && terraform output -raw sns_topic_arn 2>/dev/null || echo "")
-echo "alb_dns_name: ${ALB}"
-echo "s3_website_url: ${S3}"
-echo "sns_topic_arn: ${SNS}"
+echo "alb_dns_name:            ${ALB}"
+echo "cloudfront_domain_name:  ${CF}"
+echo "sns_topic_arn:            ${SNS}"

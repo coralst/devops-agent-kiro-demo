@@ -3,10 +3,14 @@ output "alb_dns_name" {
   value       = aws_lb.main.dns_name
 }
 
-output "s3_website_url" {
-  description = "S3 static website endpoint for the frontend"
-  value       = aws_s3_bucket_website_configuration.frontend.website_endpoint
-  # Note: website_endpoint is on aws_s3_bucket_website_configuration in AWS Provider >= 4.0
+output "cloudfront_domain_name" {
+  description = "CloudFront distribution domain name for the frontend"
+  value       = aws_cloudfront_distribution.frontend.domain_name
+}
+
+output "cloudfront_distribution_id" {
+  description = "CloudFront distribution ID (used for cache invalidation)"
+  value       = aws_cloudfront_distribution.frontend.id
 }
 
 output "rds_endpoint" {
