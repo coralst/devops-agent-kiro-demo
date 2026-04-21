@@ -6,8 +6,8 @@ This plan implements a live SVG-based architecture health dashboard for the DevO
 
 ## Tasks
 
-- [ ] 1. Add fault-status backend endpoint and API extensions
-  - [ ] 1.1 Add `GET /api/orders/fault-status` route to Orders Service
+- [x] 1. Add fault-status backend endpoint and API extensions
+  - [x] 1.1 Add `GET /api/orders/fault-status` route to Orders Service
     - Add a new route in `app/orders-service/src/routes.ts` that calls `getFaultStatus()` and returns the `FaultStatus` JSON
     - Register the route **before** the `GET /api/orders/:id` catch-all to avoid Express treating "fault-status" as an order ID
     - On success return HTTP 200 with the `FaultStatus` object; on error return HTTP 500 with `{ error: "<message>", code: "FAULT_STATUS_ERROR" }`
@@ -20,7 +20,7 @@ This plan implements a live SVG-based architecture health dashboard for the DevO
     - Test that the route is matched before the `:id` catch-all (request to `/api/orders/fault-status` does not hit the `:id` handler)
     - _Requirements: 5.1, 5.2, 5.3_
 
-  - [ ] 1.3 Add three new fetch wrappers to `app/frontend/src/api.ts`
+  - [x] 1.3 Add three new fetch wrappers to `app/frontend/src/api.ts`
     - Add `getCatalogHealth()` → `GET /api/catalog/health` returning `HealthCheck`
     - Add `getOrdersHealth()` → `GET /api/orders/health` returning `HealthCheck`
     - Add `getOrdersFaultStatus()` → `GET /api/orders/fault-status` returning `FaultStatus`
@@ -34,11 +34,11 @@ This plan implements a live SVG-based architecture health dashboard for the DevO
     - Test non-200 responses throw errors
     - _Requirements: 4.1, 4.2_
 
-- [ ] 2. Checkpoint — Verify backend endpoint and API wrappers
+- [x] 2. Checkpoint — Verify backend endpoint and API wrappers
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 3. Implement the diagram renderer module
-  - [ ] 3.1 Create `app/frontend/src/diagram-renderer.ts`
+- [x] 3. Implement the diagram renderer module
+  - [x] 3.1 Create `app/frontend/src/diagram-renderer.ts`
     - Export types: `NodeHealthState`, `ComponentId`, `DiagramRenderer` interface
     - Export `createDiagramRenderer()` factory function
     - Implement `render(container)`: create an inline `<svg>` with `viewBox="0 0 900 400"` and `preserveAspectRatio="xMidYMid meet"`
@@ -93,11 +93,11 @@ This plan implements a live SVG-based architecture health dashboard for the DevO
     - Test theme colors are applied
     - _Requirements: 1.1, 1.2, 1.3, 1.4, 2.5, 2.6, 3.5, 7.1, 7.2, 7.3, 7.4, 7.5, 7.6_
 
-- [ ] 4. Checkpoint — Verify diagram renderer
+- [x] 4. Checkpoint — Verify diagram renderer
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 5. Implement the health poller module
-  - [ ] 5.1 Create `app/frontend/src/health-poller.ts`
+- [x] 5. Implement the health poller module
+  - [x] 5.1 Create `app/frontend/src/health-poller.ts`
     - Export `HealthPollerConfig` interface with: `healthIntervalMs` (default 5000), `faultStatusIntervalMs` (default 2000), callback functions (`onCatalogHealth`, `onOrdersHealth`, `onFaultStatus`, `onError`)
     - Export `HealthPoller` interface with `start()` and `stop()` methods
     - Export `createHealthPoller(config)` factory function
@@ -135,11 +135,11 @@ This plan implements a live SVG-based architecture health dashboard for the DevO
     - Test error callback invoked on fetch failure, polling continues
     - _Requirements: 4.1, 4.2, 4.6, 4.7_
 
-- [ ] 6. Checkpoint — Verify health poller
+- [x] 6. Checkpoint — Verify health poller
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 7. Implement the dashboard orchestrator and wire everything together
-  - [ ] 7.1 Create `app/frontend/src/dashboard.ts`
+- [x] 7. Implement the dashboard orchestrator and wire everything together
+  - [x] 7.1 Create `app/frontend/src/dashboard.ts`
     - Export `Dashboard` interface with `init()` and `destroy()` methods
     - Export `createDashboard()` factory function
     - `init()` creates a `<section>` element with class `arch-dashboard`, heading "Architecture Health", a collapse toggle button, and a container `<div>` for the SVG
@@ -157,7 +157,7 @@ This plan implements a live SVG-based architecture health dashboard for the DevO
     - `destroy()` stops the poller and removes event listeners
     - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5, 4.7_
 
-  - [ ] 7.2 Wire dashboard into `app/frontend/src/main.ts`
+  - [x] 7.2 Wire dashboard into `app/frontend/src/main.ts`
     - Import `createDashboard` from `./dashboard`
     - Call `createDashboard().init()` after DOM is ready (alongside existing `init()` call)
     - Dashboard initialization must be independent of product grid loading
@@ -179,11 +179,11 @@ This plan implements a live SVG-based architecture health dashboard for the DevO
     - Test dashboard does not interfere with existing product grid, notification, or reset button elements
     - _Requirements: 8.1, 8.2, 8.3, 8.5_
 
-- [ ] 8. Checkpoint — Verify dashboard integration
+- [x] 8. Checkpoint — Verify dashboard integration
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 9. Add CSS styles and Terraform infrastructure change
-  - [ ] 9.1 Add dashboard CSS styles to `app/frontend/src/styles.css`
+- [x] 9. Add CSS styles and Terraform infrastructure change
+  - [x] 9.1 Add dashboard CSS styles to `app/frontend/src/styles.css`
     - Add `.arch-dashboard` section styles (background, padding, margin, border-radius)
     - Add `.arch-dashboard__header` styles (flex layout for heading + toggle)
     - Add `.arch-dashboard__toggle` button styles (consistent with existing theme)
@@ -193,12 +193,12 @@ This plan implements a live SVG-based architecture health dashboard for the DevO
     - Add `.ebs-usage { font-weight: 700; }` and `.ebs-usage--critical { fill: #dc3545; }` for EBS counter
     - _Requirements: 2.6, 7.1, 7.5, 8.5_
 
-  - [ ] 9.2 Change EBS volume size in `terraform/ec2-orders.tf`
+  - [x] 9.2 Change EBS volume size in `terraform/ec2-orders.tf`
     - Change `size = 20` to `size = 2` in the `aws_ebs_volume.orders_data` resource
     - Retain all other configuration (gp3 type, encryption, availability zone, tags) unchanged
     - _Requirements: 6.1, 6.2, 6.3_
 
-- [ ] 10. Final checkpoint — Ensure all tests pass
+- [x] 10. Final checkpoint — Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes

@@ -196,6 +196,68 @@ main {
   display: none;
 }
 
+/* Architecture Health Dashboard */
+.arch-dashboard {
+  background: #fff;
+  padding: 1.5rem;
+  margin: 0 auto 2rem;
+  max-width: 1200px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.arch-dashboard__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.arch-dashboard__header h2 {
+  font-size: 1.2rem;
+  color: #1a1a2e;
+  font-weight: 600;
+}
+
+.arch-dashboard__toggle {
+  background: transparent;
+  border: 1px solid #1a1a2e;
+  border-radius: 4px;
+  padding: 0.25rem 0.5rem;
+  cursor: pointer;
+  color: #1a1a2e;
+  font-size: 1rem;
+  transition: background 0.2s;
+}
+
+.arch-dashboard__toggle:hover {
+  background: #1a1a2e;
+  color: #fff;
+}
+
+.arch-dashboard__content.collapsed {
+  display: none;
+}
+
+.arch-dashboard svg {
+  width: 100%;
+  height: auto;
+}
+
+/* Status indicator transition */
+.status-indicator {
+  transition: fill 300ms ease;
+}
+
+/* EBS usage counter */
+.ebs-usage {
+  font-weight: 700;
+}
+
+.ebs-usage--critical {
+  fill: #dc3545;
+}
+
 /* Responsive adjustments */
 @media (max-width: 600px) {
   header {
@@ -206,5 +268,9 @@ main {
 
   .product-grid {
     grid-template-columns: 1fr;
+  }
+
+  .arch-dashboard {
+    padding: 1rem;
   }
 }

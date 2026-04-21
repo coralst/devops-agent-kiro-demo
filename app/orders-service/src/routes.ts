@@ -1,6 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { v4 as uuidv4 } from 'uuid';
-import { Order, Product, CheckoutResponse, ResetResponse } from '../../shared/types';
+import { Order, Product, CheckoutResponse, ResetResponse, FaultStatus } from '../../shared/types';
 import { query } from './db';
 import { writeOrderLog } from './order-log';
 import { resetFault, executeFaultInjection, getFaultStatus } from './fault-inject';
@@ -128,6 +128,24 @@ router.get('/api/orders/health', async (_req: Request, res: Response, next: Next
     res.status(200).json(health);
   } catch (err) {
     next(err);
+  }
+});
+
+/**
+ * GET /api/orders/fault-status
+ * Returns the current FaultStatus object as JSON.
+ * Defined before the :id route so Express doesn't treat "fault-status" as an order ID.
+ */
+router.get('/api/orders/fault-status', async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    const mountPath = process.env.EBS_MOUNT_PATH ?? '/mnt/ebs-data';
+    const status: FaultStatus = await getFaultStatus(mountPath);
+    res.status(200).json(status);
+  } catch (err) {
+    res.status(500).json({
+      error: err instanceof Error ? err.message : 'Failed to get fault status',
+      code: 'FAULT_STATUS_ERROR',
+    });
   }
 });
 

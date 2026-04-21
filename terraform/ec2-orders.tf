@@ -49,7 +49,7 @@ resource "aws_instance" "orders" {
 
 resource "aws_ebs_volume" "orders_data" {
   availability_zone = aws_subnet.private_a.availability_zone
-  size              = 20
+  size              = 2
   type              = "gp3"
   encrypted         = true
 

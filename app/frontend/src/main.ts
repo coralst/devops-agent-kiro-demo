@@ -1,5 +1,6 @@
 import { getItems, checkout, resetFault } from './api';
 import type { Product } from './api';
+import { createDashboard } from './dashboard';
 
 const productGrid = document.getElementById('product-grid')!;
 const loadingEl = document.getElementById('loading')!;
@@ -125,4 +126,5 @@ async function init(): Promise<void> {
 }
 
 resetBtn.addEventListener('click', handleReset);
+createDashboard().init();
 init();
