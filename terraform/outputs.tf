@@ -18,3 +18,8 @@ output "sns_topic_arn" {
   description = "ARN of the SNS topic for CloudWatch alarm notifications"
   value       = aws_sns_topic.alarms.arn
 }
+
+output "s3_bucket_name" {
+  description = "Name of the S3 bucket hosting the frontend (used by app-down.sh)"
+  value       = aws_s3_bucket.frontend.id
+}

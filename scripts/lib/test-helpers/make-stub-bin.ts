@@ -152,8 +152,24 @@ if [[ "$SUB1" == "sts" && "$SUB2" == "get-caller-identity" ]]; then
     exit 255
   fi
   ACCOUNT_ID="\${STUB_AWS_ACCOUNT_ID:-684394110906}"
-  printf '{"UserId":"AIDASTUB","Account":"%s","Arn":"arn:aws:iam::%s:user/stub"}\\n' \\
-    "$ACCOUNT_ID" "$ACCOUNT_ID"
+  # Honor --query Account --output text by emitting just the account id.
+  # Scan remaining args for the --query/--output pair.
+  QUERY=""
+  OUTPUT=""
+  shift 2 || true
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --query)  QUERY="\${2:-}"; shift 2;;
+      --output) OUTPUT="\${2:-}"; shift 2;;
+      *)        shift;;
+    esac
+  done
+  if [[ "$QUERY" == "Account" && "$OUTPUT" == "text" ]]; then
+    printf '%s\\n' "$ACCOUNT_ID"
+  else
+    printf '{"UserId":"AIDASTUB","Account":"%s","Arn":"arn:aws:iam::%s:user/stub"}\\n' \\
+      "$ACCOUNT_ID" "$ACCOUNT_ID"
+  fi
   exit 0
 fi
 
@@ -165,6 +181,26 @@ if [[ "$SUB1" == "s3api" && "$SUB2" == "get-bucket-versioning" ]]; then
   else
     printf '{"Status":"%s"}\\n' "$STATUS"
   fi
+  exit 0
+fi
+
+if [[ "$SUB1" == "s3api" && "$SUB2" == "list-object-versions" ]]; then
+  # If a JSON fixture file is supplied, return its contents verbatim.
+  # Tests that need pagination can supply a single-page fixture and
+  # rely on the absence of NextToken to terminate the loop.
+  if [[ -n "\${STUB_S3_LIST_OBJECT_VERSIONS_JSON_FILE:-}" \\
+        && -f "\${STUB_S3_LIST_OBJECT_VERSIONS_JSON_FILE}" ]]; then
+    cat "\${STUB_S3_LIST_OBJECT_VERSIONS_JSON_FILE}"
+  else
+    # Default: empty bucket with no versions or delete markers.
+    echo '{"Versions":[],"DeleteMarkers":[]}'
+  fi
+  exit 0
+fi
+
+if [[ "$SUB1" == "s3api" && "$SUB2" == "delete-objects" ]]; then
+  # Just record the call via the preamble and exit 0. Tests inspect the
+  # call log for the --delete payload to verify batch size / contents.
   exit 0
 fi
 
