@@ -203,14 +203,14 @@ Tasks marked `*` are optional — they can be skipped for a faster MVP. Every pr
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 12. Safety-critical: `--yes` argv gate (test-first, before `app-down.sh` does anything destructive)
-  - [ ] 12.1 Write failing tests for the gate in `scripts/lib/app-down.test.ts`
+  - [x] 12.1 Write failing tests for the gate in `scripts/lib/app-down.test.ts`
     - Empty argv → exit 2, R3.2 error on stderr, zero `aws`/`terraform` calls in log
     - Argv `["--no"]` → exit 2, zero calls
     - Argv `["--yes"]` → gate passes (exit is NOT 2; other pre-flight failures may exit 1, that's fine here)
     - Gate check happens BEFORE any `source` of helpers (assert no helper-side-effect file is created when gate fails)
     - _Requirements: 3.2, 3.3, 8.1, 8.2_
 
-  - [ ] 12.2 Create `app-down.sh` with ONLY the argv gate
+  - [x] 12.2 Create `app-down.sh` with ONLY the argv gate
     - Shebang + `set -euo pipefail`, executable bit set
     - Parse argv with a literal `for arg in "$@"; do [[ "$arg" == "--yes" ]] && yes_flag=1; done` — no getopt, no fuzzy matching, no `-y`
     - If gate fails, print R3.2 to stderr and exit 2 BEFORE sourcing any helper or spawning any subprocess
@@ -226,24 +226,24 @@ Tasks marked `*` are optional — they can be skipped for a faster MVP. Every pr
     - At least 100 iterations
     - _Requirements: 3.2, 8.1, 8.2_
 
-- [ ] 13. Checkpoint — `--yes` gate locked in
+- [x] 13. Checkpoint — `--yes` gate locked in
   - Ensure all tests pass, ask the user if questions arise.
   - From here on, every new layer is added AFTER the gate, so we can't regress the gate's placement.
 
 - [ ] 14. Layer: pre-flight inside `app-down.sh`
-  - [ ] 14.1 Add pre-flight invocation after the `--yes` gate
+  - [x] 14.1 Add pre-flight invocation after the `--yes` gate
     - Source `scripts/lib/preflight.sh`, call `run_preflight_checks down`
     - On failure, exit 1 with the sub-check's return code
     - _Requirements: 4.1–4.8_
 
-  - [ ] 14.2 Extend `app-down.test.ts` with pre-flight cases
+  - [x] 14.2 Extend `app-down.test.ts` with pre-flight cases
     - `--yes` + missing aws CLI → exit 1, R4.2 error
     - `--yes` + wrong account → exit 1, R4.8 error containing the wrong account ID
     - `--yes` + all pre-flight passes → proceeds further (terraform/aws calls appear in log)
     - _Requirements: 4.1–4.8_
 
 - [ ] 15. Layer: S3 bucket resolution + emptying inside `app-down.sh`
-  - [ ] 15.1 Add bucket resolution + `empty_s3_bucket` invocation
+  - [x] 15.1 Add bucket resolution + `empty_s3_bucket` invocation
     - Source `scripts/lib/s3-empty.sh`
     - Resolve bucket via `terraform output -raw s3_bucket_name` in `terraform/`
     - On resolution failure, fall back to `terraform state show aws_s3_bucket.frontend` parsing
@@ -251,7 +251,7 @@ Tasks marked `*` are optional — they can be skipped for a faster MVP. Every pr
     - Otherwise call `empty_s3_bucket <bucket> <region>`; on non-zero return, exit 1 with failing command on stderr
     - _Requirements: 5.1, 5.2, 5.3, 5.5_
 
-  - [ ] 15.2 Extend `app-down.test.ts` with S3 cases
+  - [x] 15.2 Extend `app-down.test.ts` with S3 cases
     - Bucket resolved + empty succeeds → `aws s3 rm` call in log, proceeds to destroy
     - `terraform output` fails → fallback to `state show` path runs
     - Neither works → R5.2 message on stdout, no `aws s3 rm` call, proceeds to destroy
@@ -259,33 +259,33 @@ Tasks marked `*` are optional — they can be skipped for a faster MVP. Every pr
     - _Requirements: 5.1, 5.2, 5.3, 5.5_
 
 - [ ] 16. Layer: `terraform destroy` inside `app-down.sh`
-  - [ ] 16.1 Add `terraform destroy` invocation
+  - [x] 16.1 Add `terraform destroy` invocation
     - If `terraform/terraform.tfstate` does not exist, print R6.4 message and set `destroy_rc=0`
     - Otherwise run `terraform destroy -auto-approve` in `terraform/` and record exit code in `destroy_rc`
     - Do NOT exit on non-zero `destroy_rc` — orphan sweep must still run
     - _Requirements: 6.1, 6.2, 6.3, 6.4_
 
-  - [ ] 16.2 Extend `app-down.test.ts` with destroy cases
+  - [x] 16.2 Extend `app-down.test.ts` with destroy cases
     - Missing tfstate → R6.4 message, no `terraform destroy` call, orphan sweep still runs
     - `STUB_TERRAFORM_DESTROY_RC=0` → orphan sweep runs after destroy succeeds
     - `STUB_TERRAFORM_DESTROY_RC=1` → orphan sweep still runs, script does NOT exit yet
     - _Requirements: 6.1, 6.2, 6.3, 6.4_
 
 - [ ] 17. Layer: orphan sweep + final exit-code contract
-  - [ ] 17.1 Wire orphan sweep into `app-down.sh`
+  - [x] 17.1 Wire orphan sweep into `app-down.sh`
     - Source `scripts/lib/tag-filter.sh` and `scripts/lib/orphan-parse.sh`
     - Call `aws resourcegroupstaggingapi get-resources --region <region> $(build_tag_filter_args)`
     - Pipe response to `parse_orphan_arns`, count lines into `orphan_count`
     - If the `aws` call itself fails (non-JSON response or non-zero exit), exit with that `aws` exit code and print the failing command to stderr (per design § Error Handling — this is NOT exit 3)
     - _Requirements: 7.1, 8.3_
 
-  - [ ] 17.2 Implement the final exit-code truth table
+  - [x] 17.2 Implement the final exit-code truth table
     - `orphan_count > 0` → print R7.3 header + each ARN on its own line to stderr, exit 3 (regardless of `destroy_rc`)
     - `orphan_count == 0 && destroy_rc == 0` → print R7.2 message to stdout, exit 0
     - `orphan_count == 0 && destroy_rc != 0` → print R7.6 reconciliation message to stdout, exit 0
     - _Requirements: 7.2, 7.3, 7.4, 7.5, 7.6_
 
-  - [ ] 17.3 Extend `app-down.test.ts` with final-state cases
+  - [x] 17.3 Extend `app-down.test.ts` with final-state cases
     - `(destroy_rc=0, orphans=0)` → exit 0, R7.2 message on stdout
     - `(destroy_rc=0, orphans=2)` → exit 3, R7.3 header + both ARNs on stderr
     - `(destroy_rc=1, orphans=0)` → exit 0, R7.6 message on stdout

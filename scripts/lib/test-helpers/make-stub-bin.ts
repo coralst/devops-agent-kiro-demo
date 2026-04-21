@@ -12,6 +12,10 @@
 //   STUB_S3_BUCKET_VERSIONING=<Enabled|Suspended|Disabled>
 //   STUB_ORPHAN_JSON_FILE=<path>
 //   STUB_AWS_S3_RM_FAIL=<error-string>
+//   STUB_AWS_GET_RESOURCES_FAIL=<error-string>   # make resourcegroupstaggingapi get-resources exit 1
+//   STUB_TERRAFORM_OUTPUT_EMPTY=1                # terraform output -raw <name> exits 1 w/ empty stdout
+//   STUB_TERRAFORM_STATE_SHOW_BUCKET=<name>      # 'id = "<name>"' emitted for `terraform state show aws_s3_bucket.frontend`
+//   STUB_TERRAFORM_STATE_SHOW_FAIL=1             # `terraform state show` exits 1 (no such resource)
 
 import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -213,6 +217,10 @@ if [[ "$SUB1" == "s3" && "$SUB2" == "rm" ]]; then
 fi
 
 if [[ "$SUB1" == "resourcegroupstaggingapi" && "$SUB2" == "get-resources" ]]; then
+  if [[ -n "\${STUB_AWS_GET_RESOURCES_FAIL:-}" ]]; then
+    echo "\${STUB_AWS_GET_RESOURCES_FAIL}" >&2
+    exit 1
+  fi
   if [[ -n "\${STUB_ORPHAN_JSON_FILE:-}" && -f "\${STUB_ORPHAN_JSON_FILE}" ]]; then
     cat "\${STUB_ORPHAN_JSON_FILE}"
   else
@@ -245,14 +253,42 @@ case "$SUB1" in
   output)
     # Support 'terraform output -raw <name>'. Emits deterministic values
     # so app-up.sh can print them after a successful apply. Tests can
-    # override per-output via STUB_TERRAFORM_OUTPUT_<NAME>.
+    # override per-output via STUB_TERRAFORM_OUTPUT_<NAME>. Setting
+    # STUB_TERRAFORM_OUTPUT_EMPTY=1 makes the call exit non-zero with
+    # empty stdout, which exercises app-down.sh's state-show fallback.
     if [[ "$SUB2" == "-raw" ]]; then
+      if [[ -n "\${STUB_TERRAFORM_OUTPUT_EMPTY:-}" ]]; then
+        exit 1
+      fi
       VAR_NAME="STUB_TERRAFORM_OUTPUT_\${SUB3}"
       if [[ -n "\${!VAR_NAME:-}" ]]; then
         printf '%s' "\${!VAR_NAME}"
       else
         printf 'stub-%s' "$SUB3"
       fi
+      exit 0
+    fi
+    exit 0
+    ;;
+  state)
+    # Support 'terraform state show <resource-address>'. Emits a
+    # terraform-state-show-style block containing an id line so the
+    # script's fallback bucket-name parser can match it. Tests can
+    # override the bucket via STUB_TERRAFORM_STATE_SHOW_BUCKET or
+    # force a non-zero exit via STUB_TERRAFORM_STATE_SHOW_FAIL.
+    if [[ "$SUB2" == "show" ]]; then
+      if [[ -n "\${STUB_TERRAFORM_STATE_SHOW_FAIL:-}" ]]; then
+        echo "no resource found in state" >&2
+        exit 1
+      fi
+      local_bucket="\${STUB_TERRAFORM_STATE_SHOW_BUCKET:-stub-state-show-bucket}"
+      # Emit a minimal Terraform-style attribute block with the id.
+      cat <<EOF
+# aws_s3_bucket.frontend:
+resource "aws_s3_bucket" "frontend" {
+    id = "\${local_bucket}"
+}
+EOF
       exit 0
     fi
     exit 0
