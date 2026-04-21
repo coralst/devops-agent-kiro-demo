@@ -18,6 +18,7 @@ Use these powers for orchestration and project management:
 - **aws-devops-agent** — AWS operational intelligence. Use for incident investigation, cost optimization, and architecture review when coordinating cross-agent work.
 - **aws-observability** — CloudWatch monitoring. Use for validating alarm configurations and checking deployment health.
 - **cloud-architect** — AWS infrastructure with CDK. Use when reviewing infrastructure decisions or validating architecture patterns.
+- **terraform** — Terraform Registry access (providers, modules, policies) and HCP Terraform workflows. Use when reviewing IaC PRs that touch `.tf` files: verify provider version pins, check resource arguments against current docs, and confirm modules are from trusted publishers.
 
 Activate a power before using it: `action="activate", powerName="<name>"`
 

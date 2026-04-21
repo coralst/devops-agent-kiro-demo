@@ -80,6 +80,7 @@ What becomes easier or harder because of this change?
 Use these powers when working on infrastructure and architecture tasks:
 
 - **cloud-architect** — Build AWS infrastructure with CDK following Well-Architected best practices. Use for VPC design, EC2/RDS provisioning, ALB configuration, IAM roles, and Secrets Manager setup.
+- **terraform** — Terraform Registry access (providers, modules, policies) and HCP Terraform workflows. Use when authoring or reviewing `.tf` files: look up current provider docs, pin versions, discover verified modules, and check Sentinel policies before committing architecture decisions.
 - **aws-devops-agent** — AWS operational intelligence. Use for architecture review, topology mapping, and remediation guidance.
 - **aws-observability** — CloudWatch Logs, Metrics, Alarms, Application Signals. Use for designing the observability stack (CloudWatch alarms, SNS notifications, dashboards).
 

@@ -60,6 +60,7 @@ Use these powers when working on backend services and infrastructure:
 - **aws-devops-agent** — AWS operational intelligence. Use for investigating incidents, troubleshooting EC2/EBS issues, and getting remediation guidance.
 - **aws-observability** — CloudWatch Logs, Metrics, Alarms, Application Signals. Use for querying logs, analyzing metrics, checking alarm states, and debugging service health.
 - **cloud-architect** — AWS infrastructure with CDK. Use when defining or modifying infrastructure resources (EC2 user data, RDS config, security groups).
+- **terraform** — Terraform Registry access (providers, modules, policies) and HCP Terraform workflows. Use when modifying `.tf` files for backend infrastructure (EC2, RDS, security groups, IAM): look up current provider docs, pin versions, and verify resource arguments before editing.
 
 Activate a power before using it: `action="activate", powerName="<name>"`
 
