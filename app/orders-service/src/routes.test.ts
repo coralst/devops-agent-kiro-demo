@@ -80,7 +80,7 @@ function triggerProductRow() {
 
 describe('POST /api/orders/checkout', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
   });
 
   it('creates order and returns HTTP 200 with orderId for valid checkout', async () => {
@@ -149,6 +149,7 @@ describe('POST /api/orders/checkout', () => {
     mockQuery.mockResolvedValueOnce({ rows: [product], rowCount: 1 }); // SELECT product
     mockQuery.mockResolvedValueOnce({ rows: [], rowCount: 1 });        // INSERT order
     mockWriteOrderLog.mockResolvedValueOnce(undefined);                // writeOrderLog
+    mockQuery.mockResolvedValueOnce({ rows: [], rowCount: 1 });        // UPDATE confirmed
 
     const res = await request(app)
       .post('/api/orders/checkout')
@@ -158,6 +159,39 @@ describe('POST /api/orders/checkout', () => {
     expect(res.body.faultInjected).toBe(true);
     expect(res.body.status).toBe('confirmed');
     expect(res.body.orderId).toBeDefined();
+  });
+
+  /**
+   * Bug Condition Exploration Test
+   * Validates: Requirements 1.1, 2.1
+   *
+   * This test encodes the EXPECTED behavior: trigger checkout should call
+   * UPDATE orders SET status = 'confirmed'. On UNFIXED code, this test
+   * FAILS because the trigger branch does an early return before the UPDATE.
+   */
+  it('trigger checkout calls UPDATE orders SET status to confirmed', async () => {
+    const product = triggerProductRow();
+    mockQuery.mockResolvedValueOnce({ rows: [product], rowCount: 1 }); // SELECT product
+    mockQuery.mockResolvedValueOnce({ rows: [], rowCount: 1 });        // INSERT order
+    mockWriteOrderLog.mockResolvedValueOnce(undefined);                // writeOrderLog
+    mockQuery.mockResolvedValueOnce({ rows: [], rowCount: 1 });        // UPDATE confirmed
+
+    const res = await request(app)
+      .post('/api/orders/checkout')
+      .send({ itemId: 'TRIGGER_ITEM', quantity: 1 });
+
+    expect(res.status).toBe(200);
+    expect(res.body.orderId).toBeDefined();
+
+    const orderId = res.body.orderId;
+
+    // The trigger branch should issue 3 queries: SELECT, INSERT, UPDATE
+    expect(mockQuery).toHaveBeenCalledTimes(3);
+
+    // The 3rd call (index 2) should be the UPDATE query
+    const updateCall = mockQuery.mock.calls[2];
+    expect(updateCall[0]).toContain('UPDATE orders SET status');
+    expect(updateCall[1]).toEqual(['confirmed', orderId]);
   });
 
   it('updates non-trigger order status to "confirmed"', async () => {
@@ -198,7 +232,7 @@ describe('POST /api/orders/checkout', () => {
 
 describe('GET /api/orders/:id', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
   });
 
   it('returns order with HTTP 200 for existing order', async () => {

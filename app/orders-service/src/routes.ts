@@ -90,6 +90,8 @@ router.post(
           console.error('[orders-service] Fault injection failed:', err instanceof Error ? err.message : String(err));
         }
 
+        await query('UPDATE orders SET status = $1 WHERE id = $2', ['confirmed', orderId]);
+
         const response: CheckoutResponse = {
           orderId,
           status: 'confirmed',

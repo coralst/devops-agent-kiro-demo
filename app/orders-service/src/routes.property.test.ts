@@ -193,3 +193,165 @@ describe('Property 3: Invalid checkout requests are rejected', () => {
     );
   });
 });
+
+/**
+ * Preservation Property: Non-trigger checkout query sequence and response shape
+ *
+ * For any valid non-trigger product (arbitrary id, name, price, is_trigger=false)
+ * and positive integer quantity, the checkout handler calls mockQuery exactly 3 times
+ * (SELECT, INSERT, UPDATE), the 3rd call contains 'UPDATE orders SET status' with
+ * ['confirmed', orderId], and the response has status: 'confirmed' without faultInjected.
+ *
+ * **Validates: Requirements 3.1, 3.3, 3.4**
+ */
+describe('Preservation: Non-trigger checkout query sequence and response', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it('issues exactly 3 queries (SELECT, INSERT, UPDATE) and returns confirmed without faultInjected for any valid non-trigger product', async () => {
+    await fc.assert(
+      fc.asyncProperty(
+        fc.record({
+          id: fc.uuid(),
+          name: fc.string({ minLength: 1, maxLength: 50 }),
+          price: fc.integer({ min: 1, max: 100000 }),
+        }),
+        fc.integer({ min: 1, max: 100 }),
+        async (product, quantity) => {
+          // Reset mocks between property iterations to prevent accumulation
+          mockQuery.mockReset();
+          mockWriteOrderLog.mockReset();
+
+          const productRow = {
+            id: product.id,
+            name: product.name,
+            description: 'Generated product',
+            price: product.price,
+            image_url: '/images/test.png',
+            category: 'general',
+            is_trigger: false,
+          };
+
+          // Mock: SELECT product
+          mockQuery.mockResolvedValueOnce({ rows: [productRow], rowCount: 1 });
+          // Mock: INSERT order
+          mockQuery.mockResolvedValueOnce({ rows: [], rowCount: 1 });
+          // Mock: writeOrderLog
+          mockWriteOrderLog.mockResolvedValueOnce(undefined);
+          // Mock: UPDATE order status
+          mockQuery.mockResolvedValueOnce({ rows: [], rowCount: 1 });
+
+          const res = await request(app)
+            .post('/api/orders/checkout')
+            .send({ itemId: product.id, quantity });
+
+          // Response shape
+          expect(res.status).toBe(200);
+          expect(res.body.status).toBe('confirmed');
+          expect(res.body.orderId).toBeDefined();
+          expect(typeof res.body.orderId).toBe('string');
+          expect(res.body.faultInjected).toBeUndefined();
+
+          // Query sequence: exactly 3 calls (SELECT, INSERT, UPDATE)
+          expect(mockQuery).toHaveBeenCalledTimes(3);
+
+          // 3rd call (index 2) is the UPDATE query
+          const updateCall = mockQuery.mock.calls[2];
+          expect(updateCall[0]).toContain('UPDATE orders SET status');
+          expect(updateCall[1]).toEqual(['confirmed', res.body.orderId]);
+        },
+      ),
+      { numRuns: 50 },
+    );
+  });
+});
+
+/**
+ * Preservation Property: Invalid inputs rejected with no DB interaction
+ *
+ * For any invalid input (empty/missing itemId OR non-positive quantity),
+ * the handler returns HTTP 400 with VALIDATION_ERROR and mockQuery is never called.
+ *
+ * **Validates: Requirements 3.3**
+ */
+describe('Preservation: Invalid inputs rejected with no DB queries', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it('returns HTTP 400 with VALIDATION_ERROR and never calls mockQuery for empty itemId or non-positive quantity', async () => {
+    // Generate either an invalid itemId (empty/whitespace) with valid quantity,
+    // or a valid itemId with non-positive quantity
+    const invalidItemIdArb = fc.record({
+      itemId: fc.constantFrom('', ' ', '\t', '\n', '   '),
+      quantity: fc.integer({ min: 1, max: 100 }),
+    });
+    const invalidQuantityArb = fc.record({
+      itemId: fc.uuid(),
+      quantity: fc.integer({ max: 0 }),
+    });
+
+    await fc.assert(
+      fc.asyncProperty(
+        fc.oneof(invalidItemIdArb, invalidQuantityArb),
+        async ({ itemId, quantity }) => {
+          // Reset mocks between property iterations to prevent accumulation
+          mockQuery.mockReset();
+          mockWriteOrderLog.mockReset();
+
+          const res = await request(app)
+            .post('/api/orders/checkout')
+            .send({ itemId, quantity });
+
+          expect(res.status).toBe(400);
+          expect(res.body.code).toBe('VALIDATION_ERROR');
+          expect(mockQuery).not.toHaveBeenCalled();
+        },
+      ),
+      { numRuns: 50 },
+    );
+  });
+});
+
+/**
+ * Preservation Property: Non-existent product returns 404
+ *
+ * For any valid input where the product does not exist (SELECT returns empty rows),
+ * the handler returns HTTP 404 with PRODUCT_NOT_FOUND.
+ *
+ * **Validates: Requirements 3.4**
+ */
+describe('Preservation: Non-existent product returns 404', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it('returns HTTP 404 with PRODUCT_NOT_FOUND when product does not exist', async () => {
+    await fc.assert(
+      fc.asyncProperty(
+        fc.uuid(),
+        fc.integer({ min: 1, max: 100 }),
+        async (itemId, quantity) => {
+          // Reset mocks between property iterations to prevent accumulation
+          mockQuery.mockReset();
+          mockWriteOrderLog.mockReset();
+
+          // Mock: SELECT product returns empty rows (product not found)
+          mockQuery.mockResolvedValueOnce({ rows: [], rowCount: 0 });
+
+          const res = await request(app)
+            .post('/api/orders/checkout')
+            .send({ itemId, quantity });
+
+          expect(res.status).toBe(404);
+          expect(res.body.code).toBe('PRODUCT_NOT_FOUND');
+
+          // Only 1 query should have been made (the SELECT)
+          expect(mockQuery).toHaveBeenCalledTimes(1);
+        },
+      ),
+      { numRuns: 50 },
+    );
+  });
+});

@@ -1,6 +1,6 @@
 # Implementation Plan
 
-- [ ] 1. Write bug condition exploration test
+- [x] 1. Write bug condition exploration test
   - **Property 1: Bug Condition** — Trigger checkout skips UPDATE query
   - **CRITICAL**: This test MUST FAIL on unfixed code — failure confirms the bug exists
   - **DO NOT attempt to fix the test or the code when it fails**
@@ -18,7 +18,7 @@
   - Mark task complete when test is written, run, and failure is documented
   - _Requirements: 1.1, 2.1_
 
-- [ ] 2. Write preservation property tests (BEFORE implementing fix)
+- [x] 2. Write preservation property tests (BEFORE implementing fix)
   - **Property 2: Preservation** — Non-trigger checkout behavior unchanged
   - **IMPORTANT**: Follow observation-first methodology
   - In `app/orders-service/src/routes.property.test.ts`, add property-based tests using `fast-check`
@@ -35,9 +35,9 @@
   - Mark task complete when tests are written, run, and passing on unfixed code
   - _Requirements: 3.1, 3.2, 3.3, 3.4_
 
-- [ ] 3. Fix trigger order status — add UPDATE query before early return
+- [x] 3. Fix trigger order status — add UPDATE query before early return
 
-  - [ ] 3.1 Implement the fix
+  - [x] 3.1 Implement the fix
     - In `app/orders-service/src/routes.ts`, inside the `if (product.isTrigger)` block (around line 93)
     - Add `await query('UPDATE orders SET status = $1 WHERE id = $2', ['confirmed', orderId]);` after the fault injection try/catch and before the response construction
     - This is a single line addition — no other code changes
@@ -46,7 +46,7 @@
     - _Preservation: Non-trigger checkout path, validation, product lookup, EBS error handling all remain untouched_
     - _Requirements: 1.1, 2.1, 2.2, 3.1, 3.2, 3.3, 3.4, 3.5_
 
-  - [ ] 3.2 Verify bug condition exploration test now passes
+  - [x] 3.2 Verify bug condition exploration test now passes
     - **Property 1: Expected Behavior** — Trigger checkout persists 'confirmed' status
     - **IMPORTANT**: Re-run the SAME test from task 1 — do NOT write a new test
     - The test from task 1 encodes the expected behavior (UPDATE query called with 'confirmed')
@@ -55,7 +55,7 @@
     - **EXPECTED OUTCOME**: Test PASSES — `mockQuery` is now called 3 times in the trigger path (SELECT, INSERT, UPDATE) and the UPDATE contains `['confirmed', orderId]`
     - _Requirements: 2.1, 2.2_
 
-  - [ ] 3.3 Verify preservation tests still pass
+  - [x] 3.3 Verify preservation tests still pass
     - **Property 2: Preservation** — Non-trigger checkout behavior unchanged
     - **IMPORTANT**: Re-run the SAME tests from task 2 — do NOT write new tests
     - Run preservation property tests from step 2
@@ -63,7 +63,7 @@
     - **EXPECTED OUTCOME**: Tests PASS — non-trigger paths, validation, and error handling are unaffected by the one-line addition
     - Confirm all property tests still pass after fix (no regressions)
 
-- [ ] 4. Checkpoint — Ensure all tests pass
+- [x] 4. Checkpoint — Ensure all tests pass
   - Run full test suite: `npm test -- --run` from `app/orders-service/`
   - Verify all existing tests in `routes.test.ts` still pass (especially the trigger item test that mocks only 3 query calls — it may need an additional mock resolve for the new UPDATE call)
   - Verify the new bug condition exploration test passes
