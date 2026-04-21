@@ -4,8 +4,13 @@ resource "random_password" "db_password" {
   override_special = "!#$%&*()-_=+[]{}|:,.?"
 }
 
+resource "random_id" "secret_suffix" {
+  byte_length = 4
+}
+
 resource "aws_secretsmanager_secret" "db_credentials" {
-  name = "${var.project_name}-${var.environment}-db-credentials"
+  name                    = "${var.project_name}-${var.environment}-db-credentials-${random_id.secret_suffix.hex}"
+  recovery_window_in_days = 0
 
   tags = {
     Name = "${var.project_name}-${var.environment}-db-credentials"
