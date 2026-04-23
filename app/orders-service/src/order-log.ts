@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises';
 import { exec as execCb } from 'node:child_process';
 import { promisify } from 'node:util';
+import os from 'node:os';
 import { Order } from '../../shared/types';
 
 const execAsync = promisify(execCb);
@@ -24,10 +25,15 @@ const DISK_FULL_THRESHOLD = 95;
 
 /**
  * Return the current disk usage percentage for the given mount path.
+ * Uses platform-appropriate `df` invocation (Linux vs macOS).
  */
 async function getDiskUsagePercent(mountPath: string): Promise<number> {
   try {
-    const { stdout } = await execAsync(`df --output=pcent ${mountPath} | tail -1`);
+    const cmd =
+      os.platform() === 'darwin'
+        ? `df -Pk ${mountPath} | tail -1 | awk '{print $5}'`
+        : `df --output=pcent ${mountPath} | tail -1`;
+    const { stdout } = await execAsync(cmd);
     const pct = parseInt(stdout.trim().replace('%', ''), 10);
     return Number.isNaN(pct) ? 0 : pct;
   } catch {

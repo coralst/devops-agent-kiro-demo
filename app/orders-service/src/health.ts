@@ -1,13 +1,32 @@
 import fs from 'node:fs/promises';
+import path from 'node:path';
 import { HealthCheck } from '../../shared/types';
 import { query } from './db';
+
+/**
+ * Check whether the `.fault-active` marker exists on the volume.
+ * When present, the volume is considered degraded regardless of
+ * actual I/O latency — this makes the demo work on local dev
+ * where `/tmp` is always fast.
+ */
+async function isFaultMarkerPresent(mountPath: string): Promise<boolean> {
+  try {
+    await fs.access(path.join(mountPath, '.fault-active'));
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Check the health of the Orders Service (Algorithm 4).
  *
  * Checks DB connectivity (SELECT 1) and EBS I/O (write/read/delete test file).
- * Returns "healthy" (both OK), "degraded" (DB OK, EBS slow/failing),
- * or "unhealthy" (DB unreachable).
+ * Also checks for the `.fault-active` marker — if present the volume is
+ * reported as degraded even when raw I/O is fast (software-level simulation).
+ *
+ * Returns "healthy" (both OK), "degraded" (DB OK, EBS slow/failing or fault
+ * active), or "unhealthy" (DB unreachable).
  */
 export async function checkOrdersHealth(
   mountPath: string = process.env.EBS_MOUNT_PATH ?? '/mnt/ebs-data',
@@ -43,12 +62,17 @@ export async function checkOrdersHealth(
   } catch {
     health.details.ebsVolume = false;
   } finally {
-    // Always clean up the test file
     try {
       await fs.unlink(testFile);
     } catch {
       // Ignore cleanup errors — file may not have been created
     }
+  }
+
+  // Step 2b: If the fault marker is present, override EBS to degraded.
+  // This ensures the demo works on local dev where /tmp I/O is always fast.
+  if (await isFaultMarkerPresent(mountPath)) {
+    health.details.ebsVolume = false;
   }
 
   // Step 3: Determine overall status
