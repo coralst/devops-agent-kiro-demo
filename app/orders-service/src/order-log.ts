@@ -3,6 +3,7 @@ import { exec as execCb } from 'node:child_process';
 import { promisify } from 'node:util';
 import os from 'node:os';
 import { Order } from '../../shared/types';
+import { isFaultActive } from './fault-inject';
 
 const execAsync = promisify(execCb);
 
@@ -52,6 +53,13 @@ export async function writeOrderLog(order: Order, mountPath?: string): Promise<v
   const ebsPath = mountPath ?? process.env.EBS_MOUNT_PATH ?? '/mnt/ebs-data';
   const logFile = `${ebsPath}/orders.log`;
   const logLine = `${order.id} | ${order.productId} | ${order.createdAt} | ${order.status}\n`;
+
+  // Fail fast if fault injection is active (simulates degraded EBS I/O)
+  if (await isFaultActive(ebsPath)) {
+    throw new EbsWriteError(
+      'EBS write timed out — volume degraded (fault injection active)',
+    );
+  }
 
   // Fail fast if disk is nearly full
   const usage = await getDiskUsagePercent(ebsPath);

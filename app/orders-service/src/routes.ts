@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { Order, Product, CheckoutResponse, ResetResponse, FaultStatus } from '../../shared/types';
 import { query } from './db';
 import { writeOrderLog } from './order-log';
-import { resetFault, executeFaultInjection, getFaultStatus } from './fault-inject';
+import { resetFault, executeFaultInjection, getFaultStatus, isFaultActive } from './fault-inject';
 import { checkOrdersHealth } from './health';
 
 export const router = Router();
@@ -80,7 +80,21 @@ router.post(
         status: 'pending',
         createdAt,
       };
-      await writeOrderLog(order);
+
+      try {
+        await writeOrderLog(order);
+      } catch (err) {
+        // EBS write failed — mark order as failed and return error
+        await query('UPDATE orders SET status = $1 WHERE id = $2', ['failed', orderId]);
+        const message = err instanceof Error ? err.message : 'EBS write failed';
+        res.status(503).json({
+          error: message,
+          code: 'EBS_IO_TIMEOUT',
+          orderId,
+          status: 'failed',
+        });
+        return;
+      }
 
       // Step 5: Check if trigger item
       if (product.isTrigger) {

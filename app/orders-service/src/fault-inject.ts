@@ -151,3 +151,12 @@ export async function getFaultStatus(mountPath: string): Promise<FaultStatus> {
     fioProcessRunning,
   };
 }
+
+/**
+ * Lightweight check: is the fault currently active?
+ * Avoids the overhead of the full getFaultStatus when only a boolean is needed.
+ */
+export async function isFaultActive(mountPath: string): Promise<boolean> {
+  const status = await getFaultStatus(mountPath);
+  return status.active;
+}
